@@ -102,6 +102,15 @@ The arrow markers should now be visible since the link endpoints won't be hidden
     stroke: #757575;
     stroke-opacity: 0.8;
     stroke-width: 1.5px;
+    transition: opacity 0.2s;
+  }
+
+  .node {
+    transition: opacity 0.3s ease;
+  }
+
+  .faded {
+    opacity: 0.25;
   }
 
   .node text {
@@ -339,13 +348,32 @@ function renderGraph(nodes, links) {
     .attr("rx", 10)
     .attr("ry", 10);
 
-  nodeGroup.on("mouseover", (event,d) => {
+  nodeGroup.on("mouseover", (event, d) => {
     tooltip.style("visibility", "visible").text(d.id);
-  }).on("mousemove", (event) => {
+    
+    // Find connected nodes
+    const connectedNodes = new Set();
+    connectedNodes.add(d.id);
+    links.forEach(link => {
+      if (link.source.id === d.id) connectedNodes.add(link.target.id);
+      if (link.target.id === d.id) connectedNodes.add(link.source.id);
+    });
+    
+    // Fade unconnected nodes and links
+    nodeElements.classed("faded", n => !connectedNodes.has(n.id));
+    linkElements.classed("faded", l => 
+      !connectedNodes.has(l.source.id) || !connectedNodes.has(l.target.id)
+    );
+  })
+  .on("mousemove", (event) => {
     const [x, y] = d3.pointer(event, container.node());
     tooltip.style("top", (y+20)+"px").style("left",(x+20)+"px");
-  }).on("mouseout", () => {
+  })
+  .on("mouseout", () => {
     tooltip.style("visibility", "hidden");
+    // Remove fading when mouse leaves
+    nodeElements.classed("faded", false);
+    linkElements.classed("faded", false);
   });
 
   nodeElements = nodeGroup;
