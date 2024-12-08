@@ -6,18 +6,26 @@
 <title>Mermaid-like Graph Visualizer</title>
 
 <!-- 
-Changes based on feedback:
-- Ensure rounded corners on nodes: we now set `attr("rx", 10)` and `attr("ry", 10)` directly on the <rect>.
-- Remove all panning and zooming constraints. The user can pan and zoom freely.
-  - Just center on the graph once at the initial load.
-  - Removed clampTransform and updateZoomConstraints logic.
-  - No forced scale extent either.
-- Highlight Sources previously recolored all nodes. Now:
-  - We don't re-layout the graph or recreate it on highlight toggle.
-  - Instead, we store incoming edge counts and only recolor nodes that have no inbound edges when highlight is on.
-  - Toggling Highlight Sources calls a function to just update node colors, no re-simulation.
-- The text should remain centered vertically and horizontally in the node (using dominant-baseline: middle; text-anchor: middle).
-- Picked a nicer color scheme. Normal nodes teal (#4db6ac), sources blue (#64b5f6).
+Changes requested:
+
+1. The links now should not connect center-to-center. Instead, they should connect from the closest edge points of the node rectangles so that arrowheads are visible.
+   We will compute the intersection of the line from source center to target center with the source's rectangle boundary, 
+   and similarly for the target node, and use those intersection points as x1,y1 and x2,y2 for the links.
+
+2. We already have rounded corners for nodes (rx, ry).
+
+3. Remove any panning/zooming constraints. Only center on the graph once after loading.
+
+4. Highlight Sources: It currently recolors all nodes the same color when enabled. Now it should only recolor nodes which have no incoming edges, and it should not re-layout or re-draw the whole graph. We have already implemented logic to only recolor without re-layout. Just ensure the logic is correct.
+
+We have a helper function to compute intersection of the link line with a node’s rectangle boundary.
+
+Colors:
+ - Normal node color: #333333 (dark gray)
+ - Source node color: #000080 (navy blue)
+
+Check arrows: 
+The arrow markers should now be visible since the link endpoints won't be hidden behind the node rectangle.
 -->
 
 <style>
@@ -179,17 +187,14 @@ inputElement.addEventListener("input", () => {
   updateGraph();
 });
 
-// DAG mode toggling re-runs the layout to show layering
 dagModeCheckbox.addEventListener("change", () => {
   updateGraph();
 });
 
-// Highlight Sources should only recolor existing nodes, no re-layout.
 highlightSourcesCheckbox.addEventListener("change", () => {
   updateNodeColors();
 });
 
-// Recenter button (just recenters once)
 recenterButton.addEventListener("click", () => {
   recenterGraph();
 });
@@ -208,7 +213,6 @@ function parseMermaidInput(input) {
   let nodesSet = new Set();
   let edges = [];
   
-  // Initialize incoming counts
   incomingCount = {};
 
   const edgePattern = /^(.+?)-->(?:\|([^|]+)\|)?(.+)$/;
@@ -225,20 +229,17 @@ function parseMermaidInput(input) {
       nodesSet.add(target);
       edges.push({source, target});
       
-      // Initialize counts for new nodes
       if (!incomingCount[source]) incomingCount[source] = 0;
       if (!incomingCount[target]) incomingCount[target] = 0;
-      // Increment target's incoming count
       incomingCount[target]++;
     }
   }
 
   const nodes = Array.from(nodesSet).map(n => ({id: n}));
-  console.log("Parsed incoming counts:", incomingCount); // Debug log
   return {nodes, links: edges};
 }
 
-function renderGraph(nodes, links, incomingCount) {
+function renderGraph(nodes, links) {
   console.log("Rendering graph with", nodes.length, "nodes and", links.length, "links");
   g.selectAll("*").remove();
 
@@ -247,7 +248,6 @@ function renderGraph(nodes, links, incomingCount) {
     return;
   }
 
-  // Compute DAG levels if DAG mode is on
   let dagLevels = {};
   if (dagModeCheckbox.checked) {
     dagLevels = computeLevels(nodes, links);
@@ -270,8 +270,6 @@ function renderGraph(nodes, links, incomingCount) {
 
   simulation.on("tick", ticked).on("end", onSimulationEnd);
 
-
-  // Define arrow marker
   const defs = g.append("defs");
   defs.selectAll("marker")
     .data(["arrow"])
@@ -303,11 +301,9 @@ function renderGraph(nodes, links, incomingCount) {
           .on("drag", dragged)
           .on("end", dragended));
 
-  // Append text first
   nodeGroup.append("text")
     .text(d => d.id);
 
-  // Measure text to size rectangle
   nodeGroup.each(function(d) {
     const textElem = d3.select(this).select("text").node();
     const bbox = textElem.getBBox();
@@ -317,7 +313,6 @@ function renderGraph(nodes, links, incomingCount) {
     d.bboxHeight = bbox.height + paddingY*2;
   });
 
-  // Add rectangle behind text
   nodeGroup.insert("rect", "text")
     .attr("width", d => d.bboxWidth)
     .attr("height", d => d.bboxHeight)
@@ -337,15 +332,26 @@ function renderGraph(nodes, links, incomingCount) {
 
   nodeElements = nodeGroup;
 
-  // After the nodes are created, set their colors according to highlight-sources
   updateNodeColors();
 
   function ticked() {
     linkElements
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+      .attr("x1", d => {
+        const p = intersectNodeBorder(d.source, d.target.x, d.target.y);
+        return p.x;
+      })
+      .attr("y1", d => {
+        const p = intersectNodeBorder(d.source, d.target.x, d.target.y);
+        return p.y;
+      })
+      .attr("x2", d => {
+        const p = intersectNodeBorder(d.target, d.source.x, d.source.y);
+        return p.x;
+      })
+      .attr("y2", d => {
+        const p = intersectNodeBorder(d.target, d.source.x, d.source.y);
+        return p.y;
+      });
 
     nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
   }
@@ -354,7 +360,6 @@ function renderGraph(nodes, links, incomingCount) {
 function onSimulationEnd() {
   console.log("Simulation ended.");
   if (firstLoad) {
-    // Just center on the graph once
     recenterGraph();
     firstLoad = false;
   }
@@ -375,6 +380,7 @@ function dragended(event, d) {
   d.fy = null;
 }
 
+// Compute levels for DAG mode
 function computeLevels(nodes, links) {
   const inDegree = {};
   const adj = {};
@@ -450,21 +456,69 @@ function computeNodesBoundingBox(nodes) {
   return {xMin, xMax, yMin, yMax};
 }
 
-// Just recolor nodes based on highlight-sources checkbox
+// Recolor nodes based on highlightSources
 function updateNodeColors() {
   const highlightOn = highlightSourcesCheckbox.checked;
-  console.log("Incoming counts:", incomingCount);
-  console.log("Highlight sources enabled:", highlightOn);
-
   nodeElements.select("rect")
     .attr("fill", d => {
-      console.log(`Node ${d.id} has ${incomingCount[d.id]} incoming edges`);
       if (highlightOn && incomingCount[d.id] === 0) {
-        return "#000080"; // Source node color (dark blue)
+        return "#000080"; // source node
       } else {
-        return "#333333"; // Normal node color (dark gray)
+        return "#333333"; // normal node
       }
     });
+}
+
+// Given a node (with d.x,d.y,d.bboxWidth,d.bboxHeight) and a target point (tx,ty),
+// find the intersection of the line from node center to target with the node's rectangle boundary.
+function intersectNodeBorder(node, tx, ty) {
+  // Node center:
+  const cx = node.x;
+  const cy = node.y;
+  const hw = node.bboxWidth/2;
+  const hh = node.bboxHeight/2;
+
+  let dx = tx - cx;
+  let dy = ty - cy;
+
+  // If dx=0 or dy=0, handle special cases
+  if (dx === 0 && dy === 0) {
+    // target is same as node center; just return center
+    return {x: cx, y: cy};
+  }
+
+  if (dx === 0) {
+    // Vertical line
+    // If dy>0 intersection at bottom edge, else top edge
+    return { x: cx, y: cy + (dy > 0 ? hh : -hh) };
+  }
+
+  if (dy === 0) {
+    // Horizontal line
+    // If dx>0 intersection at right edge, else left edge
+    return { x: cx + (dx > 0 ? hw : -hw), y: cy };
+  }
+
+  // For non-zero dx,dy:
+  // Check vertical boundaries:
+  const tX = hw / Math.abs(dx);
+  const yAtX = dy * tX;
+  if (Math.abs(yAtX) <= hh) {
+    // We can intersect vertical boundary first
+    return {
+      x: cx + (dx > 0 ? hw : -hw),
+      y: cy + (dy > 0 ? Math.abs(yAtX) : -Math.abs(yAtX))
+    };
+  } else {
+    // Otherwise intersect horizontal boundary
+    const tY = hh / Math.abs(dy);
+    const xAtY = dx * tY;
+    // This must be within width bounds
+    return {
+      x: cx + (dx > 0 ? Math.abs(xAtY) : -Math.abs(xAtY)),
+      y: cy + (dy > 0 ? hh : -hh)
+    };
+  }
 }
 
 // Initial render
