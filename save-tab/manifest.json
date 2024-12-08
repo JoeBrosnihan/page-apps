@@ -1,0 +1,25 @@
+{
+	"manifest_version": 2,
+	"name": "Save Tab Info",
+	"version": "1.0",
+	"description": "Saves the current tab title and URL to a markdown file.",
+	"permissions": [
+	  "activeTab"
+	],
+	"background": {
+	  "scripts": ["background.js"]
+	},
+	"commands": {
+	  "save-tab-info": {
+		"suggested_key": {
+		  "default": "Ctrl+Shift+N",
+		  "mac": "Command+Shift+N"
+		},
+		"description": "Save the current tab title and URL to a markdown file"
+	  }
+	},
+	"icons": {
+	  "48": "icon.png"
+	}
+  }
+  

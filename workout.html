@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Rep Counter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #repInput {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .stats {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #totalReps {
+            font-size: 48px;
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+            text-align: center;
+        }
+        #countdown {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            color: #e74c3c;
+            margin-top: 10px;
+        }
+        #log {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #log h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        #flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.9);
+            display: none;
+            z-index: 1000;
+        }
+        #chartContainer {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .settings {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .settings h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .settings .input-group {
+            display: flex;
+            align-items: center;
+        }
+        .settings label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .settings input {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .settings button {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Workout Rep Counter</h1>
+        <div class="input-group">
+            <input type="number" id="repInput" placeholder="Enter reps">
+            <button onclick="addReps()">Add Reps</button>
+        </div>
+        <div class="stats">
+            <span id="totalReps">0</span>
+            <small>Total Reps</small>
+            <div id="countdown">Next set in: 2:00</div>
+        </div>
+        <div id="chartContainer">
+            <canvas id="repChart"></canvas>
+        </div>
+        <div id="log">
+            <h3>Set History</h3>
+            <div id="logEntries"></div>
+        </div>
+        <div class="settings">
+            <h3>Settings</h3>
+            <div class="input-group">
+                <label for="intervalInput">Rest Interval:</label>
+                <input type="number" id="intervalInput" placeholder="Seconds">
+                <button onclick="updateInterval()">Update</button>
+            </div>
+        </div>
+    </div>
+    <div id="flash"></div>
+
+    <script>
+        let totalReps = 0;
+        let lastReps = 0;
+        let setCount = 0;
+        let countdownInterval;
+        let restInterval = 120; // Default to 120 seconds (2 minutes)
+        const repInput = document.getElementById('repInput');
+        const intervalInput = document.getElementById('intervalInput');
+        const totalRepsDisplay = document.getElementById('totalReps');
+        const logDisplay = document.getElementById('logEntries');
+        const flash = document.getElementById('flash');
+        const countdownDisplay = document.getElementById('countdown');
+
+        // Load saved interval from localStorage
+        if (localStorage.getItem('restInterval')) {
+            restInterval = parseInt(localStorage.getItem('restInterval'));
+            intervalInput.value = restInterval;
+        } else {
+            intervalInput.value = restInterval; // Set default value
+        }
+
+        // Web Audio API context
+        let audioContext;
+
+        // Chart.js setup
+        const ctx = document.getElementById('repChart').getContext('2d');
+        const repChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Reps per Set',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Reps'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Set Number'
+                        }
+                    }
+                }
+            }
+        });
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playBeep() {
+            if (!audioContext) {
+                initAudio();
+            }
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // 440 Hz - A4 note
+
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function addReps() {
+            let reps = repInput.value ? parseInt(repInput.value) : lastReps;
+            if (reps > 0) {
+                totalReps += reps;
+                lastReps = reps;
+                setCount++;
+                totalRepsDisplay.textContent = totalReps;
+                
+                // Get current time and format it
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                // Update log with time
+                logDisplay.innerHTML = `<p>Set ${setCount}: ${reps} reps - ${timeString}</p>` + logDisplay.innerHTML;
+                
+                repInput.value = '';
+                startTimer();
+                updateChart(reps);
+            }
+        }
+
+        function updateChart(reps) {
+            repChart.data.labels.push(setCount);
+            repChart.data.datasets[0].data.push(reps);
+            repChart.update();
+        }
+
+        function updateInterval() {
+            const newInterval = parseInt(intervalInput.value);
+            if (newInterval > 0) {
+                restInterval = newInterval;
+                localStorage.setItem('restInterval', restInterval);
+                alert(`Rest interval updated to ${restInterval} seconds`);
+            } else {
+                alert('Please enter a valid interval greater than 0');
+            }
+        }
+
+        function startTimer() {
+            clearInterval(countdownInterval);
+            let timeLeft = restInterval; // Use the restInterval instead of hardcoded 120
+            updateCountdown(timeLeft);
+
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                updateCountdown(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    playBeep();
+                    flash.style.display = 'block';
+                    setTimeout(() => {
+                        flash.style.display = 'none';
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        function updateCountdown(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            countdownDisplay.textContent = `Next set in: ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        repInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                addReps();
+            }
+        });
+
+        // Initialize audio context on user interaction
+        document.body.addEventListener('click', initAudio, { once: true });
+    </script>
+</body>
+</html>

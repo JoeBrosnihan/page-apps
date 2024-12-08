@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "Copy Tab Info",
+  "version": "1.0",
+  "description": "Copies the current tab title and URL to the clipboard in markdown format.",
+  "permissions": [
+    "activeTab",
+    "clipboardWrite"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "commands": {
+    "copy-tab-info": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Copy the current tab title and URL to the clipboard"
+    }
+  },
+  "icons": {
+    "48": "icon.png"
+  }
+}
