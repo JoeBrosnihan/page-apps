@@ -200,13 +200,16 @@ function updateGraph() {
   nodesData = nodes;
   linksData = links;
   console.log("Update Graph: parsed", {nodes, links});
-  renderGraph(nodes, links);
+  renderGraph(nodes, links, incomingCount);
 }
 
 function parseMermaidInput(input) {
   const lines = input.split("\n").map(l => l.trim()).filter(l => l.length > 0);
   let nodesSet = new Set();
   let edges = [];
+  
+  // Initialize incoming counts
+  incomingCount = {};
 
   const edgePattern = /^(.+?)-->(?:\|([^|]+)\|)?(.+)$/;
 
@@ -221,14 +224,21 @@ function parseMermaidInput(input) {
       nodesSet.add(source);
       nodesSet.add(target);
       edges.push({source, target});
+      
+      // Initialize counts for new nodes
+      if (!incomingCount[source]) incomingCount[source] = 0;
+      if (!incomingCount[target]) incomingCount[target] = 0;
+      // Increment target's incoming count
+      incomingCount[target]++;
     }
   }
 
   const nodes = Array.from(nodesSet).map(n => ({id: n}));
+  console.log("Parsed incoming counts:", incomingCount); // Debug log
   return {nodes, links: edges};
 }
 
-function renderGraph(nodes, links) {
+function renderGraph(nodes, links, incomingCount) {
   console.log("Rendering graph with", nodes.length, "nodes and", links.length, "links");
   g.selectAll("*").remove();
 
@@ -260,10 +270,6 @@ function renderGraph(nodes, links) {
 
   simulation.on("tick", ticked).on("end", onSimulationEnd);
 
-  // Count incoming edges
-  incomingCount = {};
-  nodes.forEach(n => incomingCount[n.id] = 0);
-  links.forEach(l => incomingCount[l.target]++);
 
   // Define arrow marker
   const defs = g.append("defs");
@@ -447,36 +453,22 @@ function computeNodesBoundingBox(nodes) {
 // Just recolor nodes based on highlight-sources checkbox
 function updateNodeColors() {
   const highlightOn = highlightSourcesCheckbox.checked;
+  console.log("Incoming counts:", incomingCount);
+  console.log("Highlight sources enabled:", highlightOn);
 
   nodeElements.select("rect")
     .attr("fill", d => {
+      console.log(`Node ${d.id} has ${incomingCount[d.id]} incoming edges`);
       if (highlightOn && incomingCount[d.id] === 0) {
-        return "#64b5f6"; // Source node color
+        return "#000080"; // Source node color (dark blue)
       } else {
-        return "#4db6ac"; // Normal node color
+        return "#333333"; // Normal node color (dark gray)
       }
     });
 }
 
 // Initial render
 updateGraph();
-
-highlightSourcesCheckbox.addEventListener('change', function() {
-    const highlightOn = highlightSourcesCheckbox.checked;
-    cy.nodes().forEach(function(node) {
-        const inboundEdges = node.connectedEdges(function(edge) {
-            return edge.target().id() === node.id();
-        });
-        
-        if (highlightOn && inboundEdges.length === 0) {
-            // Highlight source node
-            node.addClass('highlighted');
-        } else {
-            // Remove highlighting
-            node.removeClass('highlighted');
-        }
-    });
-});
 </script>
 
 </body>
