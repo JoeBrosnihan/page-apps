@@ -148,6 +148,14 @@ D-->A</textarea>
       <input type="checkbox" id="highlight-sources" />
       <span>Highlight Sources</span>
     </label>
+    <label title="Distance between connected nodes (default: 80)" style="display:flex;align-items:center;gap:5px;">
+      <span>Link Distance:</span>
+      <input type="number" id="link-distance" value="80" min="10" max="300" style="width:60px" />
+    </label>
+    <label title="Repulsion force between all nodes (default: -300, negative values push apart)" style="display:flex;align-items:center;gap:5px;">
+      <span>Node Charge:</span>
+      <input type="number" id="charge-strength" value="-300" min="-1000" max="100" style="width:70px" />
+    </label>
     <button id="recenter-btn">Recenter</button>
   </div>
 </header>
@@ -167,6 +175,8 @@ const tooltip = d3.select("#tooltip");
 const dagModeCheckbox = document.getElementById("dag-mode");
 const highlightSourcesCheckbox = document.getElementById("highlight-sources");
 const recenterButton = document.getElementById("recenter-btn");
+const linkDistanceInput = document.getElementById("link-distance");
+const chargeStrengthInput = document.getElementById("charge-strength");
 
 let simulation, linkElements, nodeElements, nodeGroup;
 let nodesData = [], linksData = [];
@@ -193,6 +203,14 @@ dagModeCheckbox.addEventListener("change", () => {
 
 highlightSourcesCheckbox.addEventListener("change", () => {
   updateNodeColors();
+});
+
+linkDistanceInput.addEventListener("change", () => {
+  updateGraph();
+});
+
+chargeStrengthInput.addEventListener("change", () => {
+  updateGraph();
 });
 
 recenterButton.addEventListener("click", () => {
@@ -254,10 +272,10 @@ function renderGraph(nodes, links) {
   }
 
   simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(80))
-    .force("charge", d3.forceManyBody().strength(-300))
+    .force("link", d3.forceLink(links).id(d => d.id).distance(+linkDistanceInput.value))
+    .force("charge", d3.forceManyBody().strength(+chargeStrengthInput.value))
     .force("center", d3.forceCenter(0,0))
-    .force("collision", d3.forceCollide().radius(30));
+    .force("collision", d3.forceCollide().radius(50));
 
   if (dagModeCheckbox.checked) {
     const levelForce = d3.forceY(d => (dagLevels[d.id] || 0)*120).strength(0.5);
