@@ -250,8 +250,9 @@ function parseMermaidInput(input) {
     }
     const match = line.match(edgePattern);
     if (match) {
-      let source = match[1].trim();
-      let target = match[3].trim();
+      let source = match[1].trim().replace(/\|\d+\|/g, '').trim();
+      let target = match[3].trim().replace(/\|\d+\|/g, '').trim();
+      
       nodesSet.add(source);
       nodesSet.add(target);
       edges.push({source, target});
@@ -263,6 +264,7 @@ function parseMermaidInput(input) {
   }
 
   const nodes = Array.from(nodesSet).map(n => ({id: n}));
+  console.log("Parsed nodes:", nodes.map(n => n.id));
   return {nodes, links: edges};
 }
 
