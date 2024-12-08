@@ -243,15 +243,19 @@ function parseMermaidInput(input) {
   incomingCount = {};
 
   const edgePattern = /^(.+?)-->(?:\|([^|]+)\|)?(.+)$/;
+  const nodePattern = /^(\w+)\[(.*?)\]$/;
 
   for (let line of lines) {
-    if (line.startsWith("graph ") || line.startsWith("%%")) {
+    // Skip graph definition, class definitions, and comments
+    if (line.startsWith("graph ") || line.startsWith("class") || line.startsWith("%%")) {
       continue;
     }
-    const match = line.match(edgePattern);
-    if (match) {
-      let source = match[1].trim().replace(/\|\d+\|/g, '').trim();
-      let target = match[3].trim().replace(/\|\d+\|/g, '').trim();
+
+    // Check for edge pattern first
+    const edgeMatch = line.match(edgePattern);
+    if (edgeMatch) {
+      let source = edgeMatch[1].trim().replace(/\|\d+\|/g, '').trim();
+      let target = edgeMatch[3].trim().replace(/\|\d+\|/g, '').trim();
       
       nodesSet.add(source);
       nodesSet.add(target);
@@ -260,6 +264,15 @@ function parseMermaidInput(input) {
       if (!incomingCount[source]) incomingCount[source] = 0;
       if (!incomingCount[target]) incomingCount[target] = 0;
       incomingCount[target]++;
+      continue;
+    }
+
+    // Check for standalone node pattern
+    const nodeMatch = line.match(nodePattern);
+    if (nodeMatch) {
+      const nodeId = nodeMatch[1].trim();
+      nodesSet.add(nodeId);
+      if (!incomingCount[nodeId]) incomingCount[nodeId] = 0;
     }
   }
 
