@@ -165,6 +165,10 @@ D-->A</textarea>
       <span>Node Charge:</span>
       <input type="number" id="charge-strength" value="-300" min="-1000" max="100" style="width:70px" />
     </label>
+    <label style="display:flex;align-items:center;gap:5px;">
+      <input type="checkbox" id="scale-nodes" checked />
+      <span>Scale Node Sizes</span>
+    </label>
     <button id="recenter-btn">Recenter</button>
   </div>
 </header>
@@ -186,6 +190,7 @@ const highlightSourcesCheckbox = document.getElementById("highlight-sources");
 const recenterButton = document.getElementById("recenter-btn");
 const linkDistanceInput = document.getElementById("link-distance");
 const chargeStrengthInput = document.getElementById("charge-strength");
+const scaleNodesCheckbox = document.getElementById("scale-nodes");
 
 let simulation, linkElements, nodeElements, nodeGroup;
 let nodesData = [], linksData = [];
@@ -220,6 +225,10 @@ linkDistanceInput.addEventListener("change", () => {
 
 chargeStrengthInput.addEventListener("change", () => {
   updateGraph();
+});
+
+scaleNodesCheckbox.addEventListener("change", () => {
+  updateNodeSizes();
 });
 
 recenterButton.addEventListener("click", () => {
@@ -394,6 +403,7 @@ function renderGraph(nodes, links) {
   nodeElements = nodeGroup;
 
   updateNodeColors();
+  updateNodeSizes();
 
   function ticked() {
     linkElements
@@ -580,6 +590,41 @@ function intersectNodeBorder(node, tx, ty) {
       y: cy + (dy > 0 ? hh : -hh)
     };
   }
+}
+
+// Add new function to update node sizes
+function updateNodeSizes() {
+  const outboundCount = {};
+  nodesData.forEach(n => outboundCount[n.id] = 0);
+  linksData.forEach(l => outboundCount[l.source.id] = (outboundCount[l.source.id] || 0) + 1);
+
+  const maxOutbound = Math.max(...Object.values(outboundCount), 1);
+  const getNodeScale = (nodeId) => {
+    if (scaleNodesCheckbox.checked) {
+      return 1 + (outboundCount[nodeId] / maxOutbound) * 0.4;
+    }
+    return 1.0;
+  };
+
+  // Use the same scale factor for both text and box
+  nodeElements.select("text")
+    .style("font-size", d => `${13 * getNodeScale(d.id)}px`);
+
+  nodeElements.each(function(d) {
+    const textElem = d3.select(this).select("text").node();
+    const bbox = textElem.getBBox();
+    const paddingX = 12;
+    const paddingY = 8;
+    const scale = getNodeScale(d.id);
+    d.bboxWidth = (bbox.width + paddingX*2) * scale;
+    d.bboxHeight = (bbox.height + paddingY*2) * scale;
+  });
+
+  nodeElements.select("rect")
+    .attr("width", d => d.bboxWidth)
+    .attr("height", d => d.bboxHeight)
+    .attr("x", d => -d.bboxWidth/2)
+    .attr("y", d => -d.bboxHeight/2);
 }
 
 // Initial render
