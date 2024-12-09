@@ -178,6 +178,11 @@ D-->A</textarea>
       <input type="checkbox" id="scale-nodes" checked />
       <span>Scale Node Sizes</span>
     </label>
+    <label title="Vertical spacing between DAG levels (default: 120)" style="display:flex;align-items:center;gap:5px;">
+      <span>Level Spacing:</span>
+      <input type="range" id="level-spacing" value="120" min="30" max="300" style="width:100px" />
+      <span id="level-spacing-value">120</span>
+    </label>
     <button id="recenter-btn">Recenter</button>
   </div>
 </header>
@@ -202,6 +207,8 @@ const chargeStrengthInput = document.getElementById("charge-strength");
 const scaleNodesCheckbox = document.getElementById("scale-nodes");
 const linkDistanceValue = document.getElementById("link-distance-value");
 const chargeStrengthValue = document.getElementById("charge-strength-value");
+const levelSpacingInput = document.getElementById("level-spacing");
+const levelSpacingValue = document.getElementById("level-spacing-value");
 
 let simulation, linkElements, nodeElements, nodeGroup;
 let nodesData = [], linksData = [];
@@ -247,6 +254,18 @@ chargeStrengthInput.addEventListener("input", () => {
 
 scaleNodesCheckbox.addEventListener("change", () => {
   updateNodeSizes();
+});
+
+levelSpacingInput.addEventListener("input", () => {
+  const value = +levelSpacingInput.value;
+  levelSpacingValue.textContent = value;
+  
+  // Update the y-force with new spacing if in DAG mode
+  if (dagModeCheckbox.checked) {
+    simulation.force("yLevel", d3.forceY(d => (dagLevels[d.id] || 0) * value).strength(0.5));
+  }
+  
+  simulation.alpha(0.3).restart();
 });
 
 recenterButton.addEventListener("click", () => {
@@ -330,7 +349,7 @@ function renderGraph(nodes, links) {
     .force("collision", d3.forceCollide().radius(50));
 
   if (dagModeCheckbox.checked) {
-    const levelForce = d3.forceY(d => (dagLevels[d.id] || 0)*120).strength(0.5);
+    const levelForce = d3.forceY(d => (dagLevels[d.id] || 0) * +levelSpacingInput.value).strength(0.5);
     simulation.force("yLevel", levelForce);
     simulation.force("xCenter", d3.forceX(0).strength(0.05));
   } else {
