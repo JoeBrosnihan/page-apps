@@ -195,6 +195,7 @@ const scaleNodesCheckbox = document.getElementById("scale-nodes");
 let simulation, linkElements, nodeElements, nodeGroup;
 let nodesData = [], linksData = [];
 let incomingCount = {}; // store incoming edges count per node id
+let dagLevels = {}; // Add this near the top where other state variables are declared
 
 // Setup zoom and pan without constraints.
 const zoom = d3.zoom()
@@ -299,9 +300,10 @@ function renderGraph(nodes, links) {
     return;
   }
 
-  let dagLevels = {};
   if (dagModeCheckbox.checked) {
     dagLevels = computeLevels(nodes, links);
+  } else {
+    dagLevels = {};
   }
 
   simulation = d3.forceSimulation(nodes)
@@ -373,7 +375,8 @@ function renderGraph(nodes, links) {
     .attr("ry", 10);
 
   nodeGroup.on("mouseover", (event, d) => {
-    tooltip.style("visibility", "visible").text(d.id);
+    const levelInfo = dagModeCheckbox.checked ? ` (Level: ${dagLevels[d.id] ?? '?'})` : '';
+    tooltip.style("visibility", "visible").text(d.id + levelInfo);
     
     // Find connected nodes
     const connectedNodes = new Set();
@@ -478,7 +481,7 @@ function computeLevels(nodes, links) {
     for (let nxt of adj[curr]) {
       if (level[curr] != null) {
         if (level[nxt] == null) level[nxt] = level[curr] + 1;
-        else level[nxt] = Math.min(level[nxt], level[curr]+1);
+        else level[nxt] = Math.max(level[nxt], level[curr]+1);
       }
       inDegree[nxt]--;
       if (inDegree[nxt] === 0) {
