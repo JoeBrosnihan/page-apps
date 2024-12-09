@@ -133,6 +133,13 @@ The arrow markers should now be visible since the link endpoints won't be hidden
     visibility: hidden;
     font-family: sans-serif;
   }
+
+  header input[type="number"] {
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
 </style>
 
 </head>
@@ -159,11 +166,13 @@ D-->A</textarea>
     </label>
     <label title="Distance between connected nodes (default: 80)" style="display:flex;align-items:center;gap:5px;">
       <span>Link Distance:</span>
-      <input type="number" id="link-distance" value="80" min="10" max="300" style="width:60px" />
+      <input type="range" id="link-distance" value="80" min="10" max="300" style="width:100px" />
+      <span id="link-distance-value">80</span>
     </label>
     <label title="Repulsion force between all nodes (default: -300, negative values push apart)" style="display:flex;align-items:center;gap:5px;">
       <span>Node Charge:</span>
-      <input type="number" id="charge-strength" value="-300" min="-1000" max="100" style="width:70px" />
+      <input type="range" id="charge-strength" value="-300" min="-1000" max="100" style="width:100px" />
+      <span id="charge-strength-value">-300</span>
     </label>
     <label style="display:flex;align-items:center;gap:5px;">
       <input type="checkbox" id="scale-nodes" checked />
@@ -191,6 +200,8 @@ const recenterButton = document.getElementById("recenter-btn");
 const linkDistanceInput = document.getElementById("link-distance");
 const chargeStrengthInput = document.getElementById("charge-strength");
 const scaleNodesCheckbox = document.getElementById("scale-nodes");
+const linkDistanceValue = document.getElementById("link-distance-value");
+const chargeStrengthValue = document.getElementById("charge-strength-value");
 
 let simulation, linkElements, nodeElements, nodeGroup;
 let nodesData = [], linksData = [];
@@ -220,12 +231,18 @@ highlightSourcesCheckbox.addEventListener("change", () => {
   updateNodeColors();
 });
 
-linkDistanceInput.addEventListener("change", () => {
-  updateGraph();
+linkDistanceInput.addEventListener("input", () => {
+  const value = +linkDistanceInput.value;
+  linkDistanceValue.textContent = value;
+  simulation.force("link").distance(value);
+  simulation.alpha(0.3).restart();
 });
 
-chargeStrengthInput.addEventListener("change", () => {
-  updateGraph();
+chargeStrengthInput.addEventListener("input", () => {
+  const value = +chargeStrengthInput.value;
+  chargeStrengthValue.textContent = value;
+  simulation.force("charge").strength(value);
+  simulation.alpha(0.3).restart();
 });
 
 scaleNodesCheckbox.addEventListener("change", () => {
