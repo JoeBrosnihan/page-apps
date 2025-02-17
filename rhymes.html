@@ -265,37 +265,34 @@ const timeOverlay   = document.getElementById("timeOverlay");
 
 // ----------------- FUNCTIONS ----------------- //
 
-/** Fetch random words + definitions from 2 separate free APIs */
-function fetchWordsAndDefinitions(numberOfWords) {
+/** Fetch a definition for a given word */
+function fetchDefinition(word) {
+  const defUrl = `${DICTIONARY_API_BASE}/${encodeURIComponent(word)}`;
+  return fetch(defUrl)
+    .then(r2 => {
+      if (!r2.ok && r2.status !== 404) {
+        return "No definition found.";
+      }
+      return r2.json();
+    })
+    .then(defData => {
+      let defText = "No definition found.";
+      if (Array.isArray(defData) && defData[0] && defData[0].meanings) {
+        const m = defData[0].meanings;
+        if (m.length > 0 && m[0].definitions[0]) {
+          defText = m[0].definitions[0].definition || defText;
+        }
+      }
+      return defText;
+    });
+}
+
+/** Fetch random words from the API */
+function fetchWords(numberOfWords) {
   return fetch(`${RANDOM_WORD_API}?number=${numberOfWords}`)
     .then(r => {
       if (!r.ok) throw new Error("Random word API failed");
       return r.json();
-    })
-    .then(words => {
-      const definitionPromises = words.map(theWord => {
-        const defUrl = `${DICTIONARY_API_BASE}/${encodeURIComponent(theWord)}`;
-        return fetch(defUrl)
-          .then(r2 => {
-            if (!r2.ok && r2.status !== 404) {
-              //throw new Error(`Definition fetch failed (status ${r2.status})`);
-			  return { word: theWord, definition: "No definition found." };
-            }
-            return r2.json();
-          })
-          .then(defData => {
-            let defText = "No definition found.";
-            if (Array.isArray(defData) && defData[0] && defData[0].meanings) {
-              const m = defData[0].meanings;
-              if (m.length > 0 && m[0].definitions[0]) {
-                defText = m[0].definitions[0].definition || defText;
-              }
-            }
-            return { word: theWord, definition: defText };
-          });
-      });
-
-      return Promise.all(definitionPromises);
     });
 }
 
@@ -304,8 +301,10 @@ function fillQueueIfNeeded() {
   const needed = WORDS_TO_QUEUE - queue.length;
   if (needed <= 0) return;
 
-  fetchWordsAndDefinitions(25).then(results => {
-    queue.push(...results);
+  fetchWords(1000).then(results => {
+    results.forEach(word => {
+      queue.push({ word, definition: "" }); // Initialize with empty definition
+    });
   }).catch(err => {
     console.warn("Error fetching from APIs:", err);
     warningEl.style.display = "block"; // show fallback warning
@@ -362,8 +361,8 @@ function showNextWord() {
   lastWordUsed = currentItem.word;
 
   // UI
-  wordDisplay.textContent = currentItem.word;
-  definitionEl.textContent = currentItem.definition;
+  wordDisplay.textContent = currentItem.word || "--"; // Ensure word is displayed
+  definitionEl.textContent = ""; // Clear previous definition
   definitionEl.style.display = "none"; // hidden by default
   rhymeCount = 0;
   countBtn.textContent = rhymeCount;
@@ -459,11 +458,13 @@ timeSelect.addEventListener("change", () => {
   }
 });
 
-// Press/Hold on the word => show definition & pause
-// We'll use pointer events for cross‐device support
+// Press/Hold on the word => fetch and show definition & pause
 wordDisplay.addEventListener("pointerdown", (e) => {
-  definitionEl.style.display = "block";
-  pauseCountdown();
+  fetchDefinition(currentItem.word).then(definition => {
+    definitionEl.textContent = definition;
+    definitionEl.style.display = "block";
+    pauseCountdown();
+  });
 });
 
 // Let go => hide definition & resume
