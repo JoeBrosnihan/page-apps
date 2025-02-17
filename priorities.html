@@ -133,9 +133,8 @@
     }
 
     canvas {
-      max-width: 400px;
-      width: 100%;
-      height: auto;
+      width: 100% !important;
+      height: 400px !important;
     }
 
     .footer-note {
@@ -236,6 +235,7 @@
       background: #43a047;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <div class="container">
@@ -288,7 +288,6 @@
   <button id="close-details">Close</button>
 </div>
 
-<!-- Minimal Pie Chart Implementation (no external libraries needed) -->
 <script>
   /************************************************************************
    * Utilities
@@ -326,84 +325,47 @@
   const legendContainer = document.getElementById('chart-legend');
 
   /************************************************************************
-   * Rendering the Pie Chart (handwritten arcs)
+   * Rendering the Pie Chart using Chart.js
    ************************************************************************/
   function drawPieChart() {
-    // Clear canvas
-    ctx.clearRect(0, 0, pieCanvas.width, pieCanvas.height);
-
     // Calculate total hours
     const totalHours = priorities.reduce((sum, p) => sum + p.hours, 0);
     const unallocatedHours = 168 - totalHours;
 
-    if (totalHours <= 0 && unallocatedHours <= 0) {
-      // Nothing to draw
-      legendContainer.innerHTML = '';
-      return;
+    // Prepare data for Chart.js
+    const data = {
+      labels: priorities.map(p => p.name).concat(unallocatedHours > 0 ? ['Unallocated'] : []),
+      datasets: [{
+        data: priorities.map(p => p.hours).concat(unallocatedHours > 0 ? [unallocatedHours] : []),
+        backgroundColor: priorities.map(p => hashStringToHSL(p.name)).concat(unallocatedHours > 0 ? ['#cccccc'] : [])
+      }]
+    };
+
+    // Destroy existing chart instance if it exists
+    if (window.myPieChart) {
+      window.myPieChart.destroy();
     }
 
-    // Pie chart center and radius
-    const centerX = pieCanvas.width / 2;
-    const centerY = pieCanvas.height / 2;
-    const radius = Math.min(pieCanvas.width, pieCanvas.height) / 2 - 10;
-
-    let startAngle = 0;
-    // Build legend HTML
-    legendContainer.innerHTML = '';
-
-    // Draw slices for each priority
-    for (let i = 0; i < priorities.length; i++) {
-      const slice = priorities[i];
-      const sliceAngle = (slice.hours / 168) * 2 * Math.PI;
-      const endAngle = startAngle + sliceAngle;
-
-      // Draw slice
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-      ctx.closePath();
-
-      const color = hashStringToHSL(slice.name);
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // Next slice starts where we ended
-      startAngle = endAngle;
-
-      // Create legend item
-      const legendItem = document.createElement('div');
-      legendItem.className = 'legend-item';
-      legendItem.innerHTML = `
-        <div class="legend-color-box" style="background: ${color}"></div>
-        <span>${slice.name} (${slice.hours}h)</span>
-      `;
-      legendContainer.appendChild(legendItem);
-    }
-
-    // Draw slice for unallocated hours if any
-    if (unallocatedHours > 0) {
-      const sliceAngle = (unallocatedHours / 168) * 2 * Math.PI;
-      const endAngle = startAngle + sliceAngle;
-
-      // Draw slice
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-      ctx.closePath();
-
-      const color = '#cccccc'; // Gray color for unallocated hours
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // Create legend item for unallocated hours
-      const legendItem = document.createElement('div');
-      legendItem.className = 'legend-item';
-      legendItem.innerHTML = `
-        <div class="legend-color-box" style="background: ${color}"></div>
-        <span>Unallocated (${unallocatedHours}h)</span>
-      `;
-      legendContainer.appendChild(legendItem);
-    }
+    // Create new chart instance
+    window.myPieChart = new Chart(ctx, {
+      type: 'pie',
+      data: data,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.raw || 0;
+                return `${label}: ${value}h`;
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   /************************************************************************
