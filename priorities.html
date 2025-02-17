@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weekly Priorities Planner</title>
+  <style>
+    /* Base styling */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Helvetica Neue", sans-serif;
+      background: #f3f3f3;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 20px 30px 30px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 30px;
+      font-size: 2rem;
+      color: #444;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .controls form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .controls input[type="text"],
+    .controls input[type="number"] {
+      padding: 6px 8px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .controls button {
+      padding: 6px 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #4caf50;
+      color: #fff;
+    }
+
+    .controls button:hover {
+      background: #43a047;
+    }
+
+    /* Table styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    table thead {
+      background: #f7f7f7;
+    }
+
+    table th, table td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    table th {
+      font-weight: 600;
+    }
+
+    table tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .remove-btn {
+      background: #e53935;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .remove-btn:hover {
+      background: #d32f2f;
+    }
+
+    /* Chart and legend */
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: #999;
+    }
+
+    .chart-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    canvas {
+      max-width: 400px;
+      width: 100%;
+      height: auto;
+    }
+
+    .footer-note {
+      font-size: 0.85rem;
+      text-align: center;
+      color: #888;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Weekly Priorities Planner</h1>
+  
+  <div class="controls">
+    <form id="add-priority-form">
+      <input type="text" id="priority-name" placeholder="Priority name" required />
+      <input type="number" id="priority-hours" placeholder="Hours per week" min="0" required />
+      <button type="submit">Add Priority</button>
+    </form>
+  </div>
+
+  <p id="hours-info">Allocated Hours: 0 / 168</p>
+
+  <table id="priorities-table">
+    <thead>
+    <tr>
+      <th>Priority</th>
+      <th>Hours/Week</th>
+      <th>Hours/Day</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Dynamically populated rows go here -->
+    </tbody>
+  </table>
+
+  <div class="chart-container">
+    <canvas id="pieChart" width="400" height="400"></canvas>
+    <div class="chart-legend" id="chart-legend"></div>
+  </div>
+
+  <p class="footer-note">Your priorities are automatically saved in your browser.</p>
+</div>
+
+<!-- Minimal Pie Chart Implementation (no external libraries needed) -->
+<script>
+  /************************************************************************
+   * Utilities
+   ************************************************************************/
+  function hashStringToHSL(str) {
+    // Simple hash function to produce a numeric hash from a string
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      hash &= hash; // Convert to 32bit integer
+    }
+    // Use hash to pick a hue (0-360), then keep saturation & lightness fixed
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 65%, 55%)`;
+  }
+
+  // Local storage helpers
+  const STORAGE_KEY = 'weekly_priorities_data';
+  function loadData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  /************************************************************************
+   * State and DOM references
+   ************************************************************************/
+  let priorities = loadData(); // array of { name: string, hours: number }
+
+  const tableBody = document.querySelector('#priorities-table tbody');
+  const pieCanvas = document.getElementById('pieChart');
+  const ctx = pieCanvas.getContext('2d');
+  const legendContainer = document.getElementById('chart-legend');
+
+  /************************************************************************
+   * Rendering the Pie Chart (handwritten arcs)
+   ************************************************************************/
+  function drawPieChart() {
+    // Clear canvas
+    ctx.clearRect(0, 0, pieCanvas.width, pieCanvas.height);
+
+    // Calculate total hours
+    const totalHours = priorities.reduce((sum, p) => sum + p.hours, 0);
+    const unallocatedHours = 168 - totalHours;
+
+    if (totalHours <= 0 && unallocatedHours <= 0) {
+      // Nothing to draw
+      legendContainer.innerHTML = '';
+      return;
+    }
+
+    // Pie chart center and radius
+    const centerX = pieCanvas.width / 2;
+    const centerY = pieCanvas.height / 2;
+    const radius = Math.min(pieCanvas.width, pieCanvas.height) / 2 - 10;
+
+    let startAngle = 0;
+    // Build legend HTML
+    legendContainer.innerHTML = '';
+
+    // Draw slices for each priority
+    for (let i = 0; i < priorities.length; i++) {
+      const slice = priorities[i];
+      const sliceAngle = (slice.hours / 168) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+
+      // Draw slice
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.closePath();
+
+      const color = hashStringToHSL(slice.name);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Next slice starts where we ended
+      startAngle = endAngle;
+
+      // Create legend item
+      const legendItem = document.createElement('div');
+      legendItem.className = 'legend-item';
+      legendItem.innerHTML = `
+        <div class="legend-color-box" style="background: ${color}"></div>
+        <span>${slice.name} (${slice.hours}h)</span>
+      `;
+      legendContainer.appendChild(legendItem);
+    }
+
+    // Draw slice for unallocated hours if any
+    if (unallocatedHours > 0) {
+      const sliceAngle = (unallocatedHours / 168) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+
+      // Draw slice
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.closePath();
+
+      const color = '#cccccc'; // Gray color for unallocated hours
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Create legend item for unallocated hours
+      const legendItem = document.createElement('div');
+      legendItem.className = 'legend-item';
+      legendItem.innerHTML = `
+        <div class="legend-color-box" style="background: ${color}"></div>
+        <span>Unallocated (${unallocatedHours}h)</span>
+      `;
+      legendContainer.appendChild(legendItem);
+    }
+  }
+
+  /************************************************************************
+   * Updating the Table
+   ************************************************************************/
+  function updateTable() {
+    // Sort priorities by hours in descending order
+    priorities.sort((a, b) => b.hours - a.hours);
+
+    // Clear existing rows
+    tableBody.innerHTML = '';
+
+    // Calculate total allocated hours
+    const totalAllocatedHours = priorities.reduce((sum, p) => sum + p.hours, 0);
+    document.getElementById('hours-info').textContent = `Allocated Hours: ${totalAllocatedHours} / 168`;
+
+    priorities.forEach((item, index) => {
+      const row = document.createElement('tr');
+
+      // Priority name cell
+      const nameCell = document.createElement('td');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = item.name;
+      nameInput.style.width = '100%';
+      nameInput.addEventListener('change', () => {
+        priorities[index].name = nameInput.value;
+        saveData(priorities);
+        drawPieChart();
+        updateTable();
+      });
+      nameCell.appendChild(nameInput);
+      row.appendChild(nameCell);
+
+      // Hours cell
+      const hoursCell = document.createElement('td');
+      const hoursInput = document.createElement('input');
+      hoursInput.type = 'number';
+      hoursInput.min = 0;
+      hoursInput.value = item.hours;
+      hoursInput.style.width = '80px';
+      hoursInput.addEventListener('change', () => {
+        priorities[index].hours = parseFloat(hoursInput.value) || 0;
+        saveData(priorities);
+        drawPieChart();
+        updateTable();
+      });
+      hoursCell.appendChild(hoursInput);
+      row.appendChild(hoursCell);
+
+      // New cell for average hours per day
+      const hoursPerDayCell = document.createElement('td');
+      const hoursPerDay = (item.hours / 7).toFixed(2); // Calculate average hours per day
+      hoursPerDayCell.textContent = hoursPerDay;
+      row.appendChild(hoursPerDayCell);
+
+      // Remove cell
+      const removeCell = document.createElement('td');
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => {
+        priorities.splice(index, 1);
+        saveData(priorities);
+        drawPieChart();
+        updateTable();
+      });
+      removeCell.appendChild(removeBtn);
+      row.appendChild(removeCell);
+
+      tableBody.appendChild(row);
+    });
+  }
+
+  /************************************************************************
+   * Initialize the page
+   ************************************************************************/
+  function init() {
+    // Fill table and draw chart
+    updateTable();
+    drawPieChart();
+
+    // Handle the add priority form
+    const form = document.getElementById('add-priority-form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById('priority-name');
+      const hoursInput = document.getElementById('priority-hours');
+
+      const newName = nameInput.value.trim();
+      const newHours = parseFloat(hoursInput.value.trim()) || 0;
+      if (!newName) return;
+
+      // Add to array
+      priorities.push({ name: newName, hours: newHours });
+      saveData(priorities);
+
+      // Reset form fields
+      nameInput.value = '';
+      hoursInput.value = '';
+
+      // Re-render
+      updateTable();
+      drawPieChart();
+    });
+  }
+
+  // On page load
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
