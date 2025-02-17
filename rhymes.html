@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dark Mode Rhyme Practice</title>
+  <style>
+    /* ---- DARK THEME ---- */
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #121212;
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* prevents bounce scroll on mobile */
+    }
+
+    /* ---- HEADER ---- */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #1E1E1E;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    #headerLeft, #headerRight {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    button {
+      background: #333333;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #444444;
+      transform: scale(1.05);
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    select {
+      background: #333333;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.4rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    
+    /* ---- HISTORY AREA (top-left of word container) ---- */
+    #historyArea {
+      position: absolute;
+      top: 0.5rem;
+      left: 0.5rem;
+      background: rgba(30, 30, 30, 0.8); /* Subtle background */
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      color: #cfcfcf;
+    }
+    #historyList {
+      list-style: none;
+    }
+    #historyList li {
+      color: #cfcfcf;
+      margin-bottom: 0.3rem;
+    }
+
+    /* ---- MAIN WORD AREA ---- */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 1rem;
+      text-align: center;
+      overflow: hidden; /* Ensure it covers the entire main */
+    }
+    #wordContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    /* Semi‐transparent overlay that shrinks to show time left. */
+    #timeOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 188, 212, 0.2);
+      pointer-events: none;
+      transform-origin: bottom center;
+      animation: countdown 30s linear forwards; /* Adjust duration as needed */
+    }
+    @keyframes countdown {
+      from { transform: scaleY(1); }
+      to   { transform: scaleY(0); }
+    }
+
+    #wordDisplay {
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 1rem;
+      text-transform: capitalize;
+      cursor: pointer; /* indicates you can press/hold it */
+    }
+    #definition {
+      font-size: 1rem;
+      color: #c0c0c0;
+      margin: 0.5rem 1rem;
+      max-width: 80%;
+      display: none; /* hidden by default */
+    }
+    #warning {
+      color: #ff4444;
+      font-size: 0.9rem;
+      display: none; 
+      margin-top: 0.5rem;
+    }
+
+    /* ---- FOOTER (BIG BUTTON) ---- */
+    footer {
+      width: 100%;
+      height: 25vh;
+      background: #1E1E1E;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #countBtn {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: none;
+      color: #FFFFFF;
+      font-size: 3rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    #countBtn:hover {
+      background-color: rgba(255,255,255,0.1);
+      transform: scale(1.02);
+    }
+    #countBtn:active {
+      transform: scale(0.98);
+    }
+
+    #syllableSelect {
+      background: #333333;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.4rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div id="headerLeft">
+    <button id="playPauseBtn">Play</button>
+    <!-- Dropdown to choose 5, 10, 15, 30, 60, or 120 seconds -->
+    <select id="timeSelect">
+      <option value="5">5s</option>
+      <option value="10">10s</option>
+      <option value="15">15s</option>
+      <option value="30" selected>30s</option>
+      <option value="60">60s</option>
+      <option value="120">120s</option>
+    </select>
+    <!-- Add syllable count dropdown -->
+    <select id="syllableSelect">
+      <option value="any" selected>Any</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
+  </div>
+
+  <div id="headerRight">
+    <button id="skipBtn">Skip</button>
+  </div>
+</header>
+
+<main>
+  <div id="timeOverlay"></div>
+  <div id="wordContainer">
+    <!-- This overlay shrinks over the chosen duration -->
+    <div id="wordDisplay">--</div>
+    <div id="definition"></div>
+    <div id="warning">Offline! Using fallback words.</div>
+  </div>
+</main>
+
+<footer>
+  <button id="countBtn">0</button>
+</footer>
+
+<script>
+// ----------------- CONFIG & STATE ----------------- //
+const RANDOM_WORD_API = 'https://random-word-api.herokuapp.com/word';
+const DICTIONARY_API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en';
+const WORDS_TO_QUEUE = 5; // number of word+definition combos to keep cached
+
+// Fallback data used if offline or fetch fails
+const FALLBACK_DATA = [
+  { word: "medieval", definition: "Someone living in the Middle Ages." },
+  { word: "shadow",   definition: "A dark area produced by something blocking light." },
+  { word: "rhythm",   definition: "A strong, repeated pattern of movement or sound." },
+  { word: "mystery",  definition: "Something that is difficult to understand or explain." },
+  { word: "freestyle",definition: "An improvised musical or poetic performance." }
+];
+
+// We'll let the user pick 30, 60, or 120 seconds. Default = 30
+let countdownMs = 30000; // 30s
+let isPlaying   = false;
+let currentItem = null;   // { word, definition }
+let rhymeCount  = 0;
+let queue       = [];     // array of { word, definition }
+let lastWordUsed = null;  // so we don't repeat the same word
+
+// Timer control
+let overlayTimer = null;
+let animationStartTime = 0;   // used to track how much time is left if we pause
+let remainingTime; // Variable to store remaining time
+
+// -------------- GET DOM ELEMENTS -------------- //
+const playPauseBtn  = document.getElementById("playPauseBtn");
+const timeSelect    = document.getElementById("timeSelect");
+const skipBtn       = document.getElementById("skipBtn");
+const wordDisplay   = document.getElementById("wordDisplay");
+const definitionEl  = document.getElementById("definition");
+const warningEl     = document.getElementById("warning");
+const countBtn      = document.getElementById("countBtn");
+const timeOverlay   = document.getElementById("timeOverlay");
+
+// ----------------- FUNCTIONS ----------------- //
+
+/** Fetch random words + definitions from 2 separate free APIs */
+function fetchWordsAndDefinitions(numberOfWords) {
+  return fetch(`${RANDOM_WORD_API}?number=${numberOfWords}`)
+    .then(r => {
+      if (!r.ok) throw new Error("Random word API failed");
+      return r.json();
+    })
+    .then(words => {
+      const definitionPromises = words.map(theWord => {
+        const defUrl = `${DICTIONARY_API_BASE}/${encodeURIComponent(theWord)}`;
+        return fetch(defUrl)
+          .then(r2 => {
+            if (!r2.ok && r2.status !== 404) {
+              //throw new Error(`Definition fetch failed (status ${r2.status})`);
+			  return { word: theWord, definition: "No definition found." };
+            }
+            return r2.json();
+          })
+          .then(defData => {
+            let defText = "No definition found.";
+            if (Array.isArray(defData) && defData[0] && defData[0].meanings) {
+              const m = defData[0].meanings;
+              if (m.length > 0 && m[0].definitions[0]) {
+                defText = m[0].definitions[0].definition || defText;
+              }
+            }
+            return { word: theWord, definition: defText };
+          });
+      });
+
+      return Promise.all(definitionPromises);
+    });
+}
+
+/** Fill queue up to WORDS_TO_QUEUE items if needed */
+function fillQueueIfNeeded() {
+  const needed = WORDS_TO_QUEUE - queue.length;
+  if (needed <= 0) return;
+
+  fetchWordsAndDefinitions(25).then(results => {
+    queue.push(...results);
+  }).catch(err => {
+    console.warn("Error fetching from APIs:", err);
+    warningEl.style.display = "block"; // show fallback warning
+    for (let i = 0; i < needed; i++) {
+      queue.push(pickFallback());
+    }
+  });
+}
+
+/** Returns a fallback item, ensuring not the same as the last word used */
+function pickFallback() {
+  let fallbackItem = null;
+  let tries = 0;
+  do {
+    const idx = Math.floor(Math.random() * FALLBACK_DATA.length);
+    fallbackItem = FALLBACK_DATA[idx];
+    tries++;
+  } while (fallbackItem.word === lastWordUsed && tries < 10);
+  return fallbackItem;
+}
+
+/** Count syllables in a word using a simple heuristic */
+function countSyllables(word) {
+  word = word.toLowerCase();
+  if (word.length <= 3) return 1; // Short words are usually one syllable
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, ''); // Remove silent 'e'
+  word = word.replace(/^y/, ''); // Remove leading 'y'
+  const syllableMatches = word.match(/[aeiouy]{1,2}/g);
+  return syllableMatches ? syllableMatches.length : 1;
+}
+
+/** Show next item from the queue (avoid duplicates and filter by syllable count). */
+function showNextWord() {
+  let nextItem = null;
+  const selectedSyllableCount = document.getElementById("syllableSelect").value;
+
+  // find a non-duplicate in the queue
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    const syllableCount = countSyllables(candidate.word);
+    if (candidate.word !== lastWordUsed && 
+        (selectedSyllableCount === "any" || syllableCount == selectedSyllableCount)) {
+      nextItem = candidate;
+      break;
+    }
+  }
+  // if none found, fallback
+  if (!nextItem) {
+    nextItem = pickFallback();
+    warningEl.style.display = "block";
+  }
+
+  currentItem = nextItem;
+  lastWordUsed = currentItem.word;
+
+  // UI
+  wordDisplay.textContent = currentItem.word;
+  definitionEl.textContent = currentItem.definition;
+  definitionEl.style.display = "none"; // hidden by default
+  rhymeCount = 0;
+  countBtn.textContent = rhymeCount;
+
+  // refill queue
+  fillQueueIfNeeded();
+
+  // start countdown
+  if (isPlaying) startCountdown();
+}
+
+/** Starts the overlay shrinking from full to zero over `countdownMs` */
+function startCountdown() {
+  pauseCountdown(); // clear any existing
+  animationStartTime = performance.now();
+
+  // Reset the animation
+  timeOverlay.style.animation = 'none';
+  timeOverlay.offsetHeight; // Trigger reflow to restart the animation
+  timeOverlay.style.animation = `countdown ${countdownMs}ms linear forwards`;
+
+  overlayTimer = setTimeout(() => {
+    // when it finishes
+    if (isPlaying) {
+      showNextWord(); 
+    }
+  }, countdownMs); // Ensure this matches countdownMs exactly
+}
+
+/** Pauses the countdown by stopping animation and remembering leftover time. */
+function pauseCountdown() {
+  if (overlayTimer) {
+    clearTimeout(overlayTimer);
+    overlayTimer = null;
+  }
+  // Calculate remaining time
+  if (animationStartTime !== 0) {
+    const elapsed = performance.now() - animationStartTime;
+    remainingTime = Math.max(0, countdownMs - elapsed);
+  }
+  // Pause the animation
+  timeOverlay.style.animationPlayState = 'paused';
+}
+
+/** Resumes the countdown from where we left off. */
+function resumeCountdown() {
+  if (remainingTime) {
+    timeOverlay.style.animation = `countdown ${remainingTime}ms linear forwards`;
+    timeOverlay.style.animationPlayState = 'running';
+    animationStartTime = performance.now(); // Reset start time for accurate resume
+
+    overlayTimer = setTimeout(() => {
+      if (isPlaying) {
+        showNextWord();
+      }
+    }, remainingTime);
+  }
+}
+
+// -------------- EVENT HANDLERS -------------- //
+
+// Play/Pause
+playPauseBtn.addEventListener("click", () => {
+  isPlaying = !isPlaying;
+  playPauseBtn.textContent = isPlaying ? "Pause" : "Play";
+
+  if (isPlaying && !currentItem) {
+    showNextWord();
+  } else if (isPlaying && currentItem) {
+    resumeCountdown();
+  } else {
+    pauseCountdown();
+  }
+});
+
+// Skip
+skipBtn.addEventListener("click", () => {
+  showNextWord();
+});
+
+// Rhyme Count Button
+countBtn.addEventListener("click", () => {
+  rhymeCount++;
+  countBtn.textContent = rhymeCount;
+});
+
+// Changing the time select
+timeSelect.addEventListener("change", () => {
+  countdownMs = parseInt(timeSelect.value, 10) * 1000; // 5, 10, 15, 30, 60, or 120 s
+  if (isPlaying) {
+    // Restart the timer with the new duration on the current word
+    startCountdown();
+  }
+});
+
+// Press/Hold on the word => show definition & pause
+// We'll use pointer events for cross‐device support
+wordDisplay.addEventListener("pointerdown", (e) => {
+  definitionEl.style.display = "block";
+  pauseCountdown();
+});
+
+// Let go => hide definition & resume
+wordDisplay.addEventListener("pointerup", (e) => {
+  definitionEl.style.display = "none";
+  if (isPlaying) {
+    resumeCountdown();
+  }
+});
+wordDisplay.addEventListener("pointerleave", (e) => {
+  if (definitionEl.style.display === "block") {
+    definitionEl.style.display = "none";
+    if (isPlaying) {
+      resumeCountdown();
+    }
+  }
+});
+
+// -------------- INIT -------------- //
+warningEl.style.display = "none";
+isPlaying = false;
+playPauseBtn.textContent = "Play";
+timeOverlay.style.animation = "none"; // Ensure no animation on load
+fillQueueIfNeeded();
+</script>
+</body>
+</html>
