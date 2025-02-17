@@ -144,6 +144,97 @@
       color: #888;
       margin-top: 30px;
     }
+
+    /* Explanation pane styling */
+    .explanation-pane {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 300px;
+      height: 100%;
+      background: #fff;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      overflow-y: auto;
+      transition: right 0.3s ease;
+      z-index: 1000;
+    }
+
+    .explanation-pane.open {
+      right: 0;
+    }
+
+    .explanation-pane h2 {
+      margin-top: 0;
+    }
+
+    .explanation-pane textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 10px;
+    }
+
+    .explanation-pane button {
+      display: block;
+      margin-top: 10px;
+    }
+
+    /* Details pane styling */
+    .details-pane {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 400px;
+      height: 100%;
+      background: #f9f9f9;
+      box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+      padding: 20px;
+      overflow-y: auto;
+      transition: right 0.3s ease;
+      z-index: 1000;
+      border-radius: 8px 0 0 8px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .details-pane.open {
+      right: 0;
+    }
+
+    .details-pane h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #333;
+    }
+
+    .details-pane textarea {
+      width: 100%;
+      height: 200px;
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      resize: none;
+      background: #fff;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .details-pane button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #4caf50;
+      color: #fff;
+      transition: background 0.3s ease;
+    }
+
+    .details-pane button:hover {
+      background: #43a047;
+    }
   </style>
 </head>
 <body>
@@ -167,6 +258,7 @@
       <th>Hours/Week</th>
       <th>Hours/Day</th>
       <th></th>
+      <th></th>
     </tr>
     </thead>
     <tbody>
@@ -180,6 +272,20 @@
   </div>
 
   <p class="footer-note">Your priorities are automatically saved in your browser.</p>
+</div>
+
+<div class="explanation-pane" id="explanation-pane">
+  <h2>Priority Explanation</h2>
+  <textarea id="explanation-text"></textarea>
+  <button id="save-explanation">Save</button>
+  <button id="close-explanation">Close</button>
+</div>
+
+<div class="details-pane" id="details-pane">
+  <h2 id="details-title">Priority Details</h2>
+  <textarea id="details-text"></textarea>
+  <button id="save-details">Save</button>
+  <button id="close-details">Close</button>
 </div>
 
 <!-- Minimal Pie Chart Implementation (no external libraries needed) -->
@@ -354,6 +460,14 @@
       hoursPerDayCell.textContent = hoursPerDay;
       row.appendChild(hoursPerDayCell);
 
+      // Details button cell
+      const detailsCell = document.createElement('td');
+      const detailsBtn = document.createElement('button');
+      detailsBtn.textContent = 'Details';
+      detailsBtn.addEventListener('click', () => openDetailsPane(index));
+      detailsCell.appendChild(detailsBtn);
+      row.appendChild(detailsCell);
+
       // Remove cell
       const removeCell = document.createElement('td');
       const removeBtn = document.createElement('button');
@@ -404,6 +518,70 @@
       drawPieChart();
     });
   }
+
+  /************************************************************************
+   * Explanation Pane Logic
+   ************************************************************************/
+  let currentExplanationIndex = null;
+
+  const explanationPane = document.getElementById('explanation-pane');
+  const explanationText = document.getElementById('explanation-text');
+  const saveExplanationBtn = document.getElementById('save-explanation');
+  const closeExplanationBtn = document.getElementById('close-explanation');
+
+  function openExplanationPane(index) {
+    currentExplanationIndex = index;
+    explanationText.value = priorities[index].explanation || '';
+    explanationPane.classList.add('open');
+  }
+
+  function closeExplanationPane() {
+    explanationPane.classList.remove('open');
+    currentExplanationIndex = null;
+  }
+
+  saveExplanationBtn.addEventListener('click', () => {
+    if (currentExplanationIndex !== null) {
+      priorities[currentExplanationIndex].explanation = explanationText.value;
+      saveData(priorities);
+      closeExplanationPane();
+    }
+  });
+
+  closeExplanationBtn.addEventListener('click', closeExplanationPane);
+
+  /************************************************************************
+   * Details Pane Logic
+   ************************************************************************/
+  let currentDetailsIndex = null;
+
+  const detailsPane = document.getElementById('details-pane');
+  const detailsText = document.getElementById('details-text');
+  const detailsTitle = document.getElementById('details-title');
+  const saveDetailsBtn = document.getElementById('save-details');
+  const closeDetailsBtn = document.getElementById('close-details');
+
+  function openDetailsPane(index) {
+    currentDetailsIndex = index;
+    detailsText.value = priorities[index].details || '';
+    detailsTitle.textContent = priorities[index].name;
+    detailsPane.classList.add('open');
+  }
+
+  function closeDetailsPane() {
+    detailsPane.classList.remove('open');
+    currentDetailsIndex = null;
+  }
+
+  saveDetailsBtn.addEventListener('click', () => {
+    if (currentDetailsIndex !== null) {
+      priorities[currentDetailsIndex].details = detailsText.value;
+      saveData(priorities);
+      closeDetailsPane();
+    }
+  });
+
+  closeDetailsBtn.addEventListener('click', closeDetailsPane);
 
   // On page load
   window.addEventListener('DOMContentLoaded', init);
