@@ -255,6 +255,9 @@ let overlayTimer = null;
 let animationStartTime = 0;   // used to track how much time is left if we pause
 let remainingTime; // Variable to store remaining time
 
+// Add a new variable to track consecutive zero-rhyme rounds
+let consecutiveZeroRhymeCount = 0;
+
 // -------------- GET DOM ELEMENTS -------------- //
 const playPauseBtn  = document.getElementById("playPauseBtn");
 const timeSelect    = document.getElementById("timeSelect");
@@ -365,6 +368,20 @@ function showNextWord() {
     // Save the completed word round before showing the next word
     const timestamp = new Date().toISOString();
     saveWordRoundToCache(currentItem.word, timestamp, rhymeCount, countdownMs / 1000);
+    
+    // Check if rhyme count is zero
+    if (rhymeCount === 0) {
+      consecutiveZeroRhymeCount++;
+    } else {
+      consecutiveZeroRhymeCount = 0; // Reset if rhymes were found
+    }
+
+    // Pause the game if there were two consecutive zero-rhyme rounds
+    if (consecutiveZeroRhymeCount >= 2) {
+      isPlaying = false;
+      playPauseBtn.textContent = "Play";
+      pauseCountdown();
+    }
   }
 
   let nextItem = null;
