@@ -230,6 +230,8 @@
 const RANDOM_WORD_API = 'https://random-word-api.herokuapp.com/word';
 const DICTIONARY_API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 const WORDS_TO_QUEUE = 5; // number of word+definition combos to keep cached
+const LOCAL_CACHE_KEY = 'wordRoundsCache'; // Key for local storage
+const MAX_CACHE_SIZE = 1000; // Maximum number of entries in the cache
 
 // Fallback data used if offline or fetch fails
 const FALLBACK_DATA = [
@@ -336,8 +338,35 @@ function countSyllables(word) {
   return syllableMatches ? syllableMatches.length : 1;
 }
 
+// Function to save a completed word round to local cache
+function saveWordRoundToCache(word, timestamp, rhymes, countdownTime) {
+  try {
+    // Retrieve existing cache or initialize a new array
+    let cache = JSON.parse(localStorage.getItem(LOCAL_CACHE_KEY)) || [];
+
+    // Add new word round to the cache
+    cache.push({ word, timestamp, rhymes, countdownTime });
+
+    // If cache exceeds max size, remove the oldest 100 entries
+    if (cache.length > MAX_CACHE_SIZE) {
+      cache = cache.slice(-MAX_CACHE_SIZE);
+    }
+
+    // Save updated cache back to local storage
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(cache));
+  } catch (error) {
+    console.error("Error saving to local cache:", error);
+  }
+}
+
 /** Show next item from the queue (avoid duplicates and filter by syllable count). */
 function showNextWord() {
+  if (currentItem) {
+    // Save the completed word round before showing the next word
+    const timestamp = new Date().toISOString();
+    saveWordRoundToCache(currentItem.word, timestamp, rhymeCount, countdownMs / 1000);
+  }
+
   let nextItem = null;
   const selectedSyllableCount = document.getElementById("syllableSelect").value;
 
