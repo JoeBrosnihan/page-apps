@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pizza Property Preference Picker</title>
+  <!-- Google Font for a modern look -->
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Basic reset and styling */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to bottom right, #e5f1ff, #f9f9f9);
+      color: #333;
+      min-height: 100vh;
+    }
+    header {
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    h1 {
+      font-weight: 700;
+      font-size: 2rem;
+      margin-bottom: 0.3rem;
+    }
+    p.subtitle {
+      font-size: 1rem;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+    main {
+      max-width: 1000px;
+      background: #fff;
+      margin: 1rem auto 3rem auto;
+      padding: 1.5rem 2rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.06);
+    }
+    .section-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .section-col {
+      flex: 1;
+      min-width: 180px;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.3rem;
+      margin-top: 0.8rem;
+    }
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.45rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      outline: none;
+      margin-bottom: 0.2rem;
+    }
+    input:focus {
+      border-color: #888;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #007BFF;
+      color: #fff;
+      padding: 0.6rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 0.5rem 0.3rem 0.5rem 0;
+      transition: background-color 0.3s, transform 0.1s;
+    }
+    .btn:hover {
+      background-color: #0056b3;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .divider {
+      margin: 1.5rem 0;
+      border-bottom: 1px solid #eee;
+    }
+    #peopleArea, #propertyArea, #pizzasArea, #resultsArea {
+      margin-top: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+    table thead th {
+      background-color: #f1f3f5;
+      font-weight: 600;
+      text-align: left;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+    }
+    table tbody td {
+      border: 1px solid #eee;
+      padding: 0.5rem;
+      vertical-align: middle;
+    }
+    table input[type="number"] {
+      width: 80px;
+      margin: 0;
+    }
+    .checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .property-checkbox {
+      display: flex;
+      align-items: center;
+      margin-right: 1rem;
+      font-size: 0.9rem;
+    }
+    .property-checkbox input {
+      margin-right: 6px;
+    }
+    #resultsArea h2 {
+      margin-bottom: 0.5rem;
+    }
+    ol {
+      margin-left: 1.2rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pizza Property Preference Picker</h1>
+    <p class="subtitle">Define pizza attributes, capture each person's preferences, then pick the best pizzas!</p>
+  </header>
+  <main>
+    <!-- Step 1: Basic Setup -->
+    <section id="setupSection">
+      <h2>Step 1: Setup</h2>
+      <div class="section-row">
+        <div class="section-col">
+          <label for="numPeople">Number of People</label>
+          <input type="number" id="numPeople" value="4" min="1" />
+        </div>
+        <div class="section-col">
+          <label for="numProperties">Number of Pizza Properties</label>
+          <input type="number" id="numProperties" value="6" min="1" />
+        </div>
+        <div class="section-col">
+          <label for="numCandidatePizzas">Number of Candidate Pizzas</label>
+          <input type="number" id="numCandidatePizzas" value="5" min="1" />
+        </div>
+        <div class="section-col">
+          <label for="numToOrder">How Many Pizzas to Order</label>
+          <input type="number" id="numToOrder" value="2" min="1" />
+        </div>
+      </div>
+      <button class="btn" onclick="generateSetup()">Generate Setup</button>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Step 2: Define People (Names + Property Weights) and Property Names -->
+    <section id="peopleArea" style="display:none;">
+      <h2>Step 2: People & Their Property Weights</h2>
+      <p>Enter a name for each person, then specify how much each pizza property matters to them, from -10 (strong dislike) to +10 (strong like).</p>
+      <div id="peopleTableWrapper" style="overflow-x:auto;">
+        <table id="peopleTable">
+          <thead>
+            <tr>
+              <th>Person Name</th>
+              <!-- Will fill property columns dynamically -->
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows for each person -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="propertyArea" style="display:none;">
+      <h2>Step 2b: Pizza Properties</h2>
+      <p>Give a name to each pizza property (e.g., "Pepperoni," "Olives," "Pineapple," "Extra Cheese," etc.).</p>
+      <table id="propertyTable">
+        <thead>
+          <tr>
+            <th>Property #</th>
+            <th>Property Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows for each property -->
+        </tbody>
+      </table>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Step 3: Candidate Pizzas, each with a set of properties -->
+    <section id="pizzasArea" style="display:none;">
+      <h2>Step 3: Define Candidate Pizzas</h2>
+      <p>For each candidate pizza, give it a name and check which properties it has.</p>
+      <div style="overflow-x:auto;">
+        <table id="pizzasTable">
+          <thead>
+            <tr>
+              <th>Pizza Name</th>
+              <!-- Will fill property columns dynamically as checkboxes -->
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows for each candidate pizza -->
+          </tbody>
+        </table>
+      </div>
+      <button class="btn" onclick="computeBestPizzas()">Compute Best Pizzas</button>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Results -->
+    <section id="resultsArea" style="display:none;">
+      <h2>Recommended Pizzas:</h2>
+      <div id="resultsContent"></div>
+    </section>
+  </main>
+
+  <script>
+    // Global references (populated after "Generate Setup" is clicked)
+    let propertyCount = 0;
+    let personCount = 0;
+    let candidatePizzaCount = 0;
+
+    // We'll store references to the input elements for:
+    // 1) Person name
+    // 2) Each property weight for each person
+    // 3) Each property's name
+    // 4) Each pizza's name + property checkboxes
+    let personNameInputs = [];         // array of text <input> for each person's name
+    let personPropertyInputs = [];     // 2D array: [personIndex][propertyIndex] => <input type="number">
+    let propertyNameInputs = [];       // array of text <input> for each property
+    let pizzaNameInputs = [];          // array of text <input> for each pizza
+    let pizzaPropertyCheckboxes = [];  // 2D array: [pizzaIndex][propertyIndex] => <input type="checkbox">
+
+    function generateSetup() {
+      // Grab user inputs
+      personCount = parseInt(document.getElementById('numPeople').value, 10);
+      propertyCount = parseInt(document.getElementById('numProperties').value, 10);
+      candidatePizzaCount = parseInt(document.getElementById('numCandidatePizzas').value, 10);
+
+      // Show the relevant sections
+      document.getElementById('peopleArea').style.display = 'block';
+      document.getElementById('propertyArea').style.display = 'block';
+      document.getElementById('pizzasArea').style.display = 'block';
+
+      generatePeopleTable();
+      generatePropertyTable();
+      generatePizzasTable();
+    }
+
+    // Generate the table for people & property weights
+    function generatePeopleTable() {
+      const peopleTable = document.getElementById('peopleTable');
+      const thead = peopleTable.querySelector('thead');
+      const tbody = peopleTable.querySelector('tbody');
+
+      // Clear out old content
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      personNameInputs = [];
+      personPropertyInputs = [];
+
+      // Build header row
+      let headerRow = document.createElement('tr');
+      let nameHeader = document.createElement('th');
+      nameHeader.textContent = 'Person Name';
+      headerRow.appendChild(nameHeader);
+
+      for (let p = 0; p < propertyCount; p++) {
+        let th = document.createElement('th');
+        th.textContent = 'Prop ' + (p + 1) + ' Weight';
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+
+      // Build rows for each person
+      for (let i = 0; i < personCount; i++) {
+        let row = document.createElement('tr');
+
+        // Person name cell
+        let nameCell = document.createElement('td');
+        let nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = 'Person ' + (i+1);
+        personNameInputs.push(nameInput);
+        nameCell.appendChild(nameInput);
+        row.appendChild(nameCell);
+
+        // Person property weight cells
+        let propertyInputsForThisPerson = [];
+        for (let p = 0; p < propertyCount; p++) {
+          let propCell = document.createElement('td');
+          let propInput = document.createElement('input');
+          propInput.type = 'number';
+          propInput.min = '-10';
+          propInput.max = '10';
+          propInput.value = '0';
+          propInput.step = '1';
+          propCell.appendChild(propInput);
+          row.appendChild(propCell);
+          propertyInputsForThisPerson.push(propInput);
+        }
+        personPropertyInputs.push(propertyInputsForThisPerson);
+
+        tbody.appendChild(row);
+      }
+    }
+
+    // Generate the table for property names
+    function generatePropertyTable() {
+      const propertyTable = document.getElementById('propertyTable');
+      const tbody = propertyTable.querySelector('tbody');
+
+      // Clear old rows
+      tbody.innerHTML = '';
+      propertyNameInputs = [];
+
+      // Build rows for each property
+      for (let p = 0; p < propertyCount; p++) {
+        let row = document.createElement('tr');
+
+        // Property index
+        let idxCell = document.createElement('td');
+        idxCell.textContent = (p + 1).toString();
+        row.appendChild(idxCell);
+
+        // Property name input
+        let nameCell = document.createElement('td');
+        let input = document.createElement('input');
+        input.type = 'text';
+        input.value = 'Property ' + (p + 1);
+        nameCell.appendChild(input);
+        row.appendChild(nameCell);
+        propertyNameInputs.push(input);
+
+        tbody.appendChild(row);
+      }
+    }
+
+    // Generate the table for candidate pizzas
+    function generatePizzasTable() {
+      const pizzasTable = document.getElementById('pizzasTable');
+      const thead = pizzasTable.querySelector('thead');
+      const tbody = pizzasTable.querySelector('tbody');
+
+      // Clear old content
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      pizzaNameInputs = [];
+      pizzaPropertyCheckboxes = [];
+
+      // Build header row
+      let headerRow = document.createElement('tr');
+      let pizzaNameHeader = document.createElement('th');
+      pizzaNameHeader.textContent = 'Pizza Name';
+      headerRow.appendChild(pizzaNameHeader);
+
+      // Create a header for each property
+      for (let p = 0; p < propertyCount; p++) {
+        let th = document.createElement('th');
+        th.textContent = 'Prop ' + (p + 1);
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+
+      // Build rows for each candidate pizza
+      for (let i = 0; i < candidatePizzaCount; i++) {
+        let row = document.createElement('tr');
+
+        // Pizza name cell
+        let nameCell = document.createElement('td');
+        let nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = 'Pizza ' + (i + 1);
+        nameCell.appendChild(nameInput);
+        row.appendChild(nameCell);
+        pizzaNameInputs.push(nameInput);
+
+        // For each property, create a checkbox
+        let checkboxesForThisPizza = [];
+        for (let p = 0; p < propertyCount; p++) {
+          let td = document.createElement('td');
+          let checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          td.appendChild(checkbox);
+          row.appendChild(td);
+          checkboxesForThisPizza.push(checkbox);
+        }
+        pizzaPropertyCheckboxes.push(checkboxesForThisPizza);
+
+        tbody.appendChild(row);
+      }
+    }
+
+    // Compute best pizzas
+    function computeBestPizzas() {
+      const resultsArea = document.getElementById('resultsArea');
+      const resultsContent = document.getElementById('resultsContent');
+      const numToOrder = parseInt(document.getElementById('numToOrder').value, 10);
+
+      // Gather property names
+      const propertyNames = propertyNameInputs.map(inp => inp.value.trim());
+
+      // Gather each person's name + property weights
+      // personPropertyInputs is [personIndex][propertyIndex] => input
+      const people = [];
+      for (let i = 0; i < personCount; i++) {
+        let personName = personNameInputs[i].value.trim();
+        let weights = [];
+        for (let p = 0; p < propertyCount; p++) {
+          let val = parseFloat(personPropertyInputs[i][p].value) || 0;
+          weights.push(val);
+        }
+        people.push({ name: personName, weights });
+      }
+
+      // Gather candidate pizzas: name + which properties are present
+      // pizzaPropertyCheckboxes is [pizzaIndex][propertyIndex] => checkbox
+      const candidatePizzas = [];
+      for (let i = 0; i < candidatePizzaCount; i++) {
+        let pizzaName = pizzaNameInputs[i].value.trim();
+        let props = [];
+        for (let p = 0; p < propertyCount; p++) {
+          props.push(pizzaPropertyCheckboxes[i][p].checked);
+        }
+        candidatePizzas.push({ name: pizzaName, properties: props });
+      }
+
+      // Compute total score for each pizza across all people
+      // Score = sum( for each property, if pizza has property then sum of weights from all people, else 0)
+      // More explicitly: totalScore = Σ over people i [ Σ over properties j [ (pizza.properties[j] ? person[i].weights[j] : 0) ] ]
+      let scoredPizzas = candidatePizzas.map(pizza => {
+        let totalScore = 0;
+        for (let i = 0; i < personCount; i++) {
+          for (let j = 0; j < propertyCount; j++) {
+            if (pizza.properties[j]) {
+              totalScore += people[i].weights[j];
+            }
+          }
+        }
+        return { name: pizza.name, score: totalScore };
+      });
+
+      // Sort by descending score
+      scoredPizzas.sort((a, b) => b.score - a.score);
+
+      // Pick top N
+      let chosen = scoredPizzas.slice(0, numToOrder);
+
+      // Display results
+      resultsArea.style.display = 'block';
+      if (chosen.length === 0) {
+        resultsContent.innerHTML = '<p>No pizzas found. Please check your setup!</p>';
+      } else {
+        let html = '<ol>';
+        chosen.forEach(p => {
+          html += `<li><strong>${p.name}</strong> (score: ${p.score})</li>`;
+        });
+        html += '</ol>';
+        resultsContent.innerHTML = html;
+      }
+
+      // Scroll to results
+      resultsArea.scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
