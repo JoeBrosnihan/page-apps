@@ -129,11 +129,34 @@
             padding: 8px 15px;
             font-size: 14px;
         }
+        #quickButtons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        #quickButtons button {
+            flex: 1;
+            margin: 0 5px;
+            padding: 20px 0; /* Ensures the buttons are square */
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #quickButtons button:hover {
+            background-color: #2980b9;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Workout Rep Counter</h1>
+        <div id="quickButtons" class="input-group" style="display: none;">
+            <!-- Buttons will be dynamically added here -->
+        </div>
         <div class="input-group">
             <input type="number" id="repInput" placeholder="Enter reps">
             <button onclick="addReps()">Add Reps</button>
@@ -244,8 +267,8 @@
             oscillator.stop(audioContext.currentTime + 0.5);
         }
 
-        function addReps() {
-            let reps = repInput.value ? parseInt(repInput.value) : lastReps;
+        function addReps(reps = null) {
+            reps = reps !== null ? reps : (repInput.value ? parseInt(repInput.value) : lastReps);
             if (reps > 0) {
                 totalReps += reps;
                 lastReps = reps;
@@ -262,6 +285,9 @@
                 repInput.value = '';
                 startTimer();
                 updateChart(reps);
+                
+                // Show and update quick buttons
+                updateQuickButtons();
             }
         }
 
@@ -306,6 +332,21 @@
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = seconds % 60;
             countdownDisplay.textContent = `Next set in: ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateQuickButtons() {
+            const quickButtonsContainer = document.getElementById('quickButtons');
+            quickButtonsContainer.innerHTML = ''; // Clear existing buttons
+            quickButtonsContainer.style.display = 'flex'; // Show the container
+
+            for (let i = lastReps - 2; i <= lastReps + 2; i++) {
+                if (i > 0) { // Only create buttons for positive reps
+                    const button = document.createElement('button');
+                    button.textContent = i;
+                    button.onclick = () => addReps(i);
+                    quickButtonsContainer.appendChild(button);
+                }
+            }
         }
 
         repInput.addEventListener('keyup', function(event) {
