@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta 
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+  <title>Stock Viewer</title>
+  <!-- Tailwind CSS via CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* A little custom styling to complement Tailwind. */
+    body {
+      background-color: #f1f5f9; /* Gray-100 from Tailwind */
+    }
+    .transition-all {
+      transition: all 0.2s ease-in-out;
+    }
+    .main-container {
+      max-width: 600px;
+      margin: auto;
+    }
+    /* A quick utility for making radio buttons nicer */
+    input[type="radio"] {
+      accent-color: #1d4ed8; /* Blue-700 */
+    }
+  </style>
+</head>
+<body class="text-gray-800">
+
+  <div class="main-container px-4 py-8">
+    <!-- Header -->
+    <h1 class="text-2xl font-bold mb-4 text-center">Stock Viewer</h1>
+    
+    <!-- Search Section -->
+    <div class="mb-6">
+      <label for="stockSearch" class="block mb-1 font-semibold">Enter a Stock Symbol:</label>
+      <div class="flex space-x-2">
+        <input
+          id="stockSearch"
+          type="text"
+          placeholder="e.g. AAPL, TSLA"
+          class="w-full px-3 py-2 border border-gray-300 rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-600"
+        />
+        <button
+          id="searchBtn"
+          class="px-4 py-2 bg-blue-600 text-white rounded font-semibold transition-all hover:bg-blue-700"
+        >
+          Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Company Info Section -->
+    <div id="companyInfo" class="bg-white shadow p-4 rounded mb-6 hidden">
+      <h2 class="text-xl font-bold mb-2" id="companyName">Company Name</h2>
+      <p class="text-gray-600">
+        Market Cap: 
+        <span id="marketCap" class="font-semibold text-lg"></span>
+      </p>
+    </div>
+
+    <!-- Time Range Buttons -->
+    <div class="mb-4 flex flex-wrap gap-2 items-center">
+      <span class="font-semibold">View Range:</span>
+      <label>
+        <input type="radio" name="timeRange" value="1mo" checked />
+        <span class="ml-1">1M</span>
+      </label>
+      <label>
+        <input type="radio" name="timeRange" value="6mo" />
+        <span class="ml-1">6M</span>
+      </label>
+      <label>
+        <input type="radio" name="timeRange" value="1y" />
+        <span class="ml-1">1Y</span>
+      </label>
+      <label>
+        <input type="radio" name="timeRange" value="5y" />
+        <span class="ml-1">5Y</span>
+      </label>
+      <label>
+        <input type="radio" name="timeRange" value="max" />
+        <span class="ml-1">Max</span>
+      </label>
+    </div>
+
+    <!-- Chart Container -->
+    <div class="bg-white p-4 rounded shadow">
+      <canvas id="stockChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Grab elements
+    const stockSearch = document.getElementById("stockSearch");
+    const searchBtn = document.getElementById("searchBtn");
+    const companyInfoDiv = document.getElementById("companyInfo");
+    const companyNameEl = document.getElementById("companyName");
+    const marketCapEl = document.getElementById("marketCap");
+    const timeRangeRadios = document.getElementsByName("timeRange");
+    const chartCanvas = document.getElementById("stockChart");
+
+    // Chart instance (created after first fetch)
+    let stockChart = null;
+    // Data cache for re-charting different ranges without re-fetch
+    let fullTimestamps = [];
+    let fullPrices = [];
+
+    // Listen for search
+    searchBtn.addEventListener("click", handleSearch);
+
+    // Listen for time range changes
+    timeRangeRadios.forEach(radio => {
+      radio.addEventListener("change", () => {
+        if (fullTimestamps.length && fullPrices.length) {
+          updateChart();
+        }
+      });
+    });
+
+    async function handleSearch() {
+      const symbol = stockSearch.value.trim().toUpperCase();
+      if (!symbol) return;
+
+      // Fetch market cap & name
+      await fetchCompanyInfo(symbol);
+
+      // Fetch historical data
+      await fetchHistoricalData(symbol);
+      // By default, radio is set to 1mo, but we’ll reset it to “max” if you prefer:
+      document.querySelector('input[name="timeRange"][value="max"]').checked = true;
+      updateChart();
+    }
+
+    // 1) Fetch market cap & name from Yahoo Finance
+    async function fetchCompanyInfo(symbol) {
+      try {
+        // Basic quote info: https://query1.finance.yahoo.com/v7/finance/quote?symbols=...
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.quoteResponse?.result?.length) {
+          const info = data.quoteResponse.result[0];
+          companyNameEl.textContent = info.longName || symbol;
+          
+          // Market cap (if missing, fallback to "N/A")
+          if (info.marketCap) {
+            const cap = formatMarketCap(info.marketCap);
+            marketCapEl.textContent = cap;
+          } else {
+            marketCapEl.textContent = "N/A";
+          }
+
+          companyInfoDiv.classList.remove("hidden");
+        } else {
+          // If no data
+          companyInfoDiv.classList.add("hidden");
+          alert("No company info found for " + symbol);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Could not fetch company info. Check console for details.");
+      }
+    }
+
+    // Convert a numeric market cap into a human-readable string
+    function formatMarketCap(value) {
+      if (value >= 1e12) {
+        return (value / 1e12).toFixed(2) + "T";
+      } else if (value >= 1e9) {
+        return (value / 1e9).toFixed(2) + "B";
+      } else if (value >= 1e6) {
+        return (value / 1e6).toFixed(2) + "M";
+      } else if (value >= 1e3) {
+        return (value / 1e3).toFixed(2) + "K";
+      } else {
+        return value.toString();
+      }
+    }
+
+    // 2) Fetch historical data from Yahoo Finance chart endpoint
+    async function fetchHistoricalData(symbol) {
+      // We'll request "max" by default, then filter in the chart
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=max`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.chart?.result?.length) {
+          const result = data.chart.result[0];
+          const timestamps = result.timestamp || [];
+          const quotes = result.indicators?.quote?.[0] || {};
+          const closes = quotes.close || [];
+
+          fullTimestamps = timestamps.map(ts => ts * 1000);  // Convert to ms
+          fullPrices = closes;
+        } else {
+          alert("No chart data found for " + symbol);
+          fullTimestamps = [];
+          fullPrices = [];
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Could not fetch historical data. Check console for details.");
+      }
+    }
+
+    // Update or create the Chart.js chart
+    function updateChart() {
+      const selectedRange = document.querySelector('input[name="timeRange"]:checked').value;
+      let filteredTimestamps = [...fullTimestamps];
+      let filteredPrices = [...fullPrices];
+
+      // Filter by chosen range
+      if (selectedRange !== "max") {
+        const now = Date.now();
+        let cutoff;
+        switch (selectedRange) {
+          case "1mo":
+            cutoff = now - 30 * 24 * 60 * 60 * 1000;
+            break;
+          case "6mo":
+            cutoff = now - 6 * 30 * 24 * 60 * 60 * 1000;
+            break;
+          case "1y":
+            cutoff = now - 365 * 24 * 60 * 60 * 1000;
+            break;
+          case "5y":
+            cutoff = now - 5 * 365 * 24 * 60 * 60 * 1000;
+            break;
+        }
+        filteredTimestamps = fullTimestamps.filter(ts => ts >= cutoff);
+        // Map them to the same indices in prices
+        const startIndex = fullTimestamps.findIndex(ts => ts >= cutoff);
+        if (startIndex >= 0) {
+          filteredPrices = fullPrices.slice(startIndex);
+        }
+      }
+
+      // Format data for Chart.js
+      const chartData = filteredTimestamps.map((ts, i) => ({
+        x: ts,
+        y: filteredPrices[i]
+      }));
+
+      // Destroy old chart if it exists
+      if (stockChart) {
+        stockChart.destroy();
+      }
+
+      // Create a new chart
+      stockChart = new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+          datasets: [
+            {
+              label: 'Stock Price',
+              data: chartData,
+              borderColor: '#1d4ed8',  // Tailwind Blue-700
+              backgroundColor: 'rgba(29,78,216,0.1)',
+              fill: true,
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, // better for mobile
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+              },
+              title: {
+                display: true,
+                text: 'Date',
+                font: { size: 14 }
+              }
+            },
+            y: {
+              beginAtZero: true, // Always show from zero
+              title: {
+                display: true,
+                text: 'Price (USD)',
+                font: { size: 14 }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              mode: 'nearest',
+              intersect: false
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
