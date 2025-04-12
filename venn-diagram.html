@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Venn Diagram</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --text-color: #333;
+            --background-color: #f8f9fa;
+            --card-bg: white;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --border-radius: 12px;
+            --font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            overflow: hidden;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background-color: var(--card-bg);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        main {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        #venn-container {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--card-bg);
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 0.6rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            font-family: var(--font-family);
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #324fcc;
+        }
+
+        button.secondary {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        button.secondary:hover {
+            background-color: #dee2e6;
+        }
+
+        .item-element {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            margin-bottom: 0.5rem;
+        }
+
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .item-name {
+            flex-grow: 1;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .item-name:hover {
+            text-decoration: underline;
+            color: var(--primary-color);
+        }
+
+        .edit-name-input {
+            flex-grow: 1;
+            padding: 0.3rem 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 0.9rem;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+
+        .circle {
+            cursor: move;
+            opacity: 0.6;
+            stroke: white;
+            stroke-width: 2;
+            transition: opacity 0.3s;
+        }
+
+        .circle:hover {
+            opacity: 0.75;
+        }
+
+        .resize-handle {
+            cursor: nwse-resize;
+            fill: white;
+            stroke: #666;
+            stroke-width: 2;
+        }
+
+        .info-text {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            line-height: 1.4;
+        }
+
+        .overlay-highlight {
+            fill: #fff;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Interactive Venn Diagram</h1>
+    </header>
+    
+    <main>
+        <div id="venn-container">
+            <div class="tooltip"></div>
+            <svg id="venn-svg" width="100%" height="100%"></svg>
+        </div>
+        
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h2>Add New Item</h2>
+                <div class="input-group">
+                    <input type="text" id="item-input" placeholder="Enter name...">
+                    <button id="add-item-btn">Add</button>
+                </div>
+                <p class="info-text">
+                    Drag circles to position them. Use the resize handle to change size. Click on an item's name to rename it.
+                </p>
+            </div>
+            
+            <div class="sidebar-section">
+                <h2>Legend</h2>
+                <div id="items-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // State management
+            const state = {
+                items: [
+                    { id: 1, name: 'Category A', x: 300, y: 250, radius: 120 },
+                    { id: 2, name: 'Category B', x: 450, y: 300, radius: 140 },
+                    { id: 3, name: 'Category C', x: 350, y: 400, radius: 100 },
+                    { id: 4, name: 'Category D', x: 500, y: 200, radius: 110 }
+                ],
+                nextId: 5,
+                activeElement: null,
+                resizing: false,
+                dragging: false,
+                offset: { x: 0, y: 0 },
+                itemBeingEdited: null
+            };
+
+            // Get DOM elements
+            const svg = d3.select('#venn-svg');
+            const tooltip = d3.select('.tooltip');
+            const itemInput = document.getElementById('item-input');
+            const addItemBtn = document.getElementById('add-item-btn');
+            const itemsList = document.getElementById('items-list');
+
+            // Function to generate a color from a string
+            function stringToColor(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                
+                // Generate HSL values to ensure vibrant colors
+                const h = (hash % 360 + 360) % 360; // Hue: 0-359
+                const s = 65 + (hash % 20); // Saturation: 65-85%
+                const l = 55 + (hash % 15); // Lightness: 55-70%
+                
+                return `hsl(${h}, ${s}%, ${l}%)`;
+            }
+
+            // Render functions
+            function renderVenn() {
+                // Clear previous elements
+                svg.selectAll('.item-group').remove();
+                
+                // Create groups for each item
+                const itemGroups = svg.selectAll('.item-group')
+                    .data(state.items, d => d.id)
+                    .enter()
+                    .append('g')
+                    .attr('class', 'item-group')
+                    .attr('id', d => `item-${d.id}`);
+
+                // Add circles
+                itemGroups.append('circle')
+                    .attr('class', 'circle')
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y)
+                    .attr('r', d => d.radius)
+                    .attr('fill', d => stringToColor(d.name))
+                    .call(setupDragBehavior);
+
+                // Add resize handles
+                itemGroups.append('circle')
+                    .attr('class', 'resize-handle')
+                    .attr('cx', d => d.x + d.radius * 0.7071) // 45 degrees
+                    .attr('cy', d => d.y + d.radius * 0.7071)
+                    .attr('r', 8)
+                    .call(setupResizeBehavior);
+
+                // Highlight overlaps
+                calculateOverlaps();
+            }
+
+            function renderLegend() {
+                // Clear previous elements
+                itemsList.innerHTML = '';
+                
+                // Add items for each element
+                state.items.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'item-element';
+                    itemElement.dataset.id = item.id;
+                    
+                    const colorIndicator = document.createElement('div');
+                    colorIndicator.className = 'color-indicator';
+                    colorIndicator.style.backgroundColor = stringToColor(item.name);
+                    
+                    if (state.itemBeingEdited === item.id) {
+                        // Show input for editing
+                        const nameInput = document.createElement('input');
+                        nameInput.type = 'text';
+                        nameInput.className = 'edit-name-input';
+                        nameInput.value = item.name;
+                        nameInput.addEventListener('keydown', function(event) {
+                            if (event.key === 'Enter') {
+                                renameItem(item.id, this.value);
+                            } else if (event.key === 'Escape') {
+                                state.itemBeingEdited = null;
+                                renderLegend();
+                            }
+                        });
+                        nameInput.addEventListener('blur', function() {
+                            renameItem(item.id, this.value);
+                        });
+                        
+                        itemElement.appendChild(colorIndicator);
+                        itemElement.appendChild(nameInput);
+                        
+                        // Focus the input after it's added to the DOM
+                        setTimeout(() => nameInput.focus(), 0);
+                    } else {
+                        // Show normal view
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'item-name';
+                        nameSpan.textContent = item.name;
+                        nameSpan.addEventListener('click', function() {
+                            state.itemBeingEdited = item.id;
+                            renderLegend();
+                        });
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'secondary';
+                        deleteBtn.textContent = 'Remove';
+                        deleteBtn.onclick = () => removeItem(item.id);
+                        
+                        itemElement.appendChild(colorIndicator);
+                        itemElement.appendChild(nameSpan);
+                        itemElement.appendChild(deleteBtn);
+                    }
+                    
+                    itemsList.appendChild(itemElement);
+                });
+            }
+
+            // Event handlers
+            function addItem() {
+                const itemName = itemInput.value.trim();
+                if (itemName) {
+                    // Position new items in a reasonable area of the svg
+                    const svgRect = svg.node().getBoundingClientRect();
+                    const x = Math.random() * (svgRect.width * 0.6) + (svgRect.width * 0.2);
+                    const y = Math.random() * (svgRect.height * 0.6) + (svgRect.height * 0.2);
+                    
+                    state.items.push({
+                        id: state.nextId++,
+                        name: itemName,
+                        x: x,
+                        y: y,
+                        radius: 100
+                    });
+                    
+                    itemInput.value = '';
+                    renderVenn();
+                    renderLegend();
+                }
+            }
+
+            function removeItem(id) {
+                state.items = state.items.filter(item => item.id !== id);
+                renderVenn();
+                renderLegend();
+            }
+
+            function renameItem(id, newName) {
+                if (newName.trim()) {
+                    const item = state.items.find(item => item.id === id);
+                    if (item) {
+                        item.name = newName.trim();
+                        state.itemBeingEdited = null;
+                        renderVenn();
+                        renderLegend();
+                    }
+                } else {
+                    state.itemBeingEdited = null;
+                    renderLegend();
+                }
+            }
+
+            function calculateOverlaps() {
+                // Remove previous overlays
+                svg.selectAll('.overlay-highlight').remove();
+                
+                // For each pair of circles, calculate intersection
+                for (let i = 0; i < state.items.length; i++) {
+                    for (let j = i + 1; j < state.items.length; j++) {
+                        const circle1 = state.items[i];
+                        const circle2 = state.items[j];
+                        
+                        // Calculate distance between centers
+                        const dx = circle2.x - circle1.x;
+                        const dy = circle2.y - circle1.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // If circles overlap
+                        if (distance < circle1.radius + circle2.radius && distance > Math.abs(circle1.radius - circle2.radius)) {
+                            // Calculate intersection area - simplified with an approximation
+                            const a = (circle1.radius * circle1.radius - circle2.radius * circle2.radius + distance * distance) / (2 * distance);
+                            const h = Math.sqrt(circle1.radius * circle1.radius - a * a);
+                            
+                            // Calculate intersection points
+                            const x2 = circle1.x + a * (circle2.x - circle1.x) / distance;
+                            const y2 = circle1.y + a * (circle2.y - circle1.y) / distance;
+                            
+                            const x3 = x2 + h * (circle2.y - circle1.y) / distance;
+                            const y3 = y2 - h * (circle2.x - circle1.x) / distance;
+                            
+                            const x4 = x2 - h * (circle2.y - circle1.y) / distance;
+                            const y4 = y2 + h * (circle2.x - circle1.x) / distance;
+                            
+                            // Create a path for the intersection
+                            const path = [
+                                `M ${x3} ${y3}`,
+                                `A ${circle1.radius} ${circle1.radius} 0 0 1 ${x4} ${y4}`,
+                                `A ${circle2.radius} ${circle2.radius} 0 0 1 ${x3} ${y3}`,
+                                'Z'
+                            ].join(' ');
+                            
+                            // Add intersection highlight
+                            svg.append('path')
+                                .attr('class', 'overlay-highlight')
+                                .attr('d', path);
+                        }
+                    }
+                }
+            }
+
+            // Setup drag behavior for circles
+            function setupDragBehavior(selection) {
+                selection
+                    .on('mouseenter', function(event, d) {
+                        tooltip.style('opacity', 1)
+                            .text(d.name);
+                    })
+                    .on('mousemove', function(event) {
+                        tooltip.style('left', `${event.pageX}px`)
+                            .style('top', `${event.pageY}px`);
+                    })
+                    .on('mouseleave', function() {
+                        tooltip.style('opacity', 0);
+                    })
+                    .on('mousedown', function(event, d) {
+                        if (event.button !== 0) return; // Only left mouse button
+                        
+                        event.preventDefault();
+                        state.dragging = true;
+                        state.activeElement = d.id;
+                        
+                        const circle = d3.select(this);
+                        const circleX = parseFloat(circle.attr('cx'));
+                        const circleY = parseFloat(circle.attr('cy'));
+                        
+                        state.offset = {
+                            x: event.clientX - circleX,
+                            y: event.clientY - circleY
+                        };
+                        
+                        // Bring to front
+                        this.parentNode.parentNode.appendChild(this.parentNode);
+                    });
+            }
+
+            // Setup resize behavior for handles
+            function setupResizeBehavior(selection) {
+                selection
+                    .on('mousedown', function(event, d) {
+                        if (event.button !== 0) return; // Only left mouse button
+                        
+                        event.preventDefault();
+                        event.stopPropagation();
+                        state.resizing = true;
+                        state.activeElement = d.id;
+                    });
+            }
+
+            // Global mouse events for drag/resize
+            document.addEventListener('mousemove', function(event) {
+                if (!state.activeElement) return;
+                
+                const activeItem = state.items.find(g => g.id === state.activeElement);
+                if (!activeItem) return;
+                
+                if (state.dragging) {
+                    activeItem.x = event.clientX - state.offset.x;
+                    activeItem.y = event.clientY - state.offset.y;
+                    
+                    // Update circle position
+                    const circle = svg.select(`#item-${activeItem.id} circle.circle`);
+                    circle.attr('cx', activeItem.x)
+                          .attr('cy', activeItem.y);
+                    
+                    // Update handle position
+                    const handle = svg.select(`#item-${activeItem.id} circle.resize-handle`);
+                    handle.attr('cx', activeItem.x + activeItem.radius * 0.7071)
+                          .attr('cy', activeItem.y + activeItem.radius * 0.7071);
+                    
+                    // Recalculate overlaps
+                    calculateOverlaps();
+                } 
+                else if (state.resizing) {
+                    // Calculate distance from center to mouse
+                    const dx = event.clientX - activeItem.x;
+                    const dy = event.clientY - activeItem.y;
+                    const newRadius = Math.max(30, Math.sqrt(dx * dx + dy * dy));
+                    
+                    activeItem.radius = newRadius;
+                    
+                    // Update circle size
+                    const circle = svg.select(`#item-${activeItem.id} circle.circle`);
+                    circle.attr('r', newRadius);
+                    
+                    // Update handle position
+                    const handle = svg.select(`#item-${activeItem.id} circle.resize-handle`);
+                    handle.attr('cx', activeItem.x + newRadius * 0.7071)
+                          .attr('cy', activeItem.y + newRadius * 0.7071);
+                    
+                    // Recalculate overlaps
+                    calculateOverlaps();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                state.dragging = false;
+                state.resizing = false;
+                state.activeElement = null;
+            });
+
+            // Window resize handler
+            window.addEventListener('resize', renderVenn);
+
+            // Event listeners
+            addItemBtn.addEventListener('click', addItem);
+            itemInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    addItem();
+                }
+            });
+
+            // Initial render
+            renderVenn();
+            renderLegend();
+        });
+    </script>
+</body>
+</html> 
