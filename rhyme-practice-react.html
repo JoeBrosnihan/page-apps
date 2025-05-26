@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rhyme Practice</title>
+  
+  <!-- React and Babel for in-browser transpilation -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    /* Dark theme styling inspired by the original */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #121212;
+      color: #FFFFFF;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    #root {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Header styling */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #1E1E1E;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    
+    .header-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    button {
+      background: #333333;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+    
+    button:hover {
+      background-color: #444444;
+      transform: scale(1.05);
+    }
+    
+    button:active {
+      transform: scale(0.95);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    select {
+      background: #333333;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.4rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    
+    /* Main content area */
+    .main-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    
+    .word-container {
+      text-align: center;
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    .word-display {
+      font-size: 3rem;
+      font-weight: bold;
+      margin: 1rem;
+      text-transform: capitalize;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s ease;
+    }
+    
+    .word-display:active {
+      transform: scale(0.95);
+    }
+    
+    .definition {
+      font-size: 1rem;
+      color: #c0c0c0;
+      margin: 0.5rem 1rem;
+      min-height: 2rem;
+      line-height: 1.5;
+    }
+    
+    .timer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background-color: #00BCD4;
+      transition: width 0.1s linear;
+    }
+    
+    .stats {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(30, 30, 30, 0.9);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      min-width: 150px;
+    }
+    
+    .stats h3 {
+      margin-bottom: 0.5rem;
+      color: #00BCD4;
+    }
+    
+    .stats p {
+      margin: 0.25rem 0;
+    }
+    
+    /* Count button footer */
+    .footer {
+      height: 25vh;
+      background: #1E1E1E;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    
+    .count-button {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: none;
+      color: #FFFFFF;
+      font-size: 4rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      position: relative;
+    }
+    
+    .count-button:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+    
+    .count-button:active {
+      transform: scale(0.98);
+      background-color: rgba(0, 188, 212, 0.2);
+    }
+    
+    .count-label {
+      font-size: 1rem;
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0.7;
+    }
+    
+    /* Loading and error states */
+    .loading {
+      color: #888;
+      font-style: italic;
+    }
+    
+    .error {
+      color: #ff4444;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    
+    /* Fade in animation for new words */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .word-display.new-word {
+      animation: fadeIn 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // Context: This is a rhyme practice game where users are presented with random words
+    // and need to think of rhyming words before a timer runs out. They tap a counter
+    // to track how many rhymes they thought of. The game helps with freestyle rap practice.
+    
+    const { useState, useEffect, useRef, useCallback } = React;
+    
+    // Configuration constants
+    const RANDOM_WORD_API = 'https://random-word-api.herokuapp.com/word';
+    const DICTIONARY_API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en';
+    const WORDS_TO_QUEUE = 50; // Keep a larger buffer of words
+    const FETCH_BATCH_SIZE = 100; // Fetch many words at once
+    
+    // Fallback words if API fails
+    const FALLBACK_WORDS = [
+      { word: "medieval", definition: "Relating to the Middle Ages." },
+      { word: "shadow", definition: "A dark area produced by something blocking light." },
+      { word: "rhythm", definition: "A strong, repeated pattern of movement or sound." },
+      { word: "mystery", definition: "Something that is difficult to understand or explain." },
+      { word: "freestyle", definition: "An improvised musical or poetic performance." },
+      { word: "battle", definition: "A sustained fight between opposing forces." },
+      { word: "courage", definition: "The ability to do something that frightens one." },
+      { word: "wisdom", definition: "The quality of having experience and good judgment." },
+      { word: "journey", definition: "An act of traveling from one place to another." },
+      { word: "thunder", definition: "A loud rumbling sound heard after lightning." }
+    ];
+    
+    // Main App Component
+    function RhymePracticeApp() {
+      // Game state
+      const [isPlaying, setIsPlaying] = useState(true);
+      const [currentWord, setCurrentWord] = useState(null);
+      const [definition, setDefinition] = useState('');
+      const [showDefinition, setShowDefinition] = useState(false);
+      const [rhymeCount, setRhymeCount] = useState(0);
+      const [timeLeft, setTimeLeft] = useState(100); // percentage
+      const [duration, setDuration] = useState(30); // seconds
+      const [isOffline, setIsOffline] = useState(false);
+      const [wordQueue, setWordQueue] = useState([]);
+      const [isLoadingDefinition, setIsLoadingDefinition] = useState(false);
+      
+      // Stats tracking
+      const [sessionStats, setSessionStats] = useState({
+        totalWords: 0,
+        totalRhymes: 0,
+        averageRhymes: 0,
+        bestWord: { word: '', count: 0 }
+      });
+      
+      // Refs for timer management
+      const timerRef = useRef(null);
+      const startTimeRef = useRef(null);
+      const wordQueueRef = useRef([]);
+      const usedWordsRef = useRef(new Set());
+      
+      // Update queue ref when state changes
+      useEffect(() => {
+        wordQueueRef.current = wordQueue;
+      }, [wordQueue]);
+      
+      // Fetch definition for a word
+      const fetchDefinition = useCallback(async (word) => {
+        setIsLoadingDefinition(true);
+        try {
+          const response = await fetch(`${DICTIONARY_API_BASE}/${encodeURIComponent(word)}`);
+          if (!response.ok) {
+            setDefinition('Definition not available.');
+            return;
+          }
+          
+          const data = await response.json();
+          if (data[0]?.meanings?.[0]?.definitions?.[0]?.definition) {
+            setDefinition(data[0].meanings[0].definitions[0].definition);
+          } else {
+            setDefinition('Definition not available.');
+          }
+        } catch (error) {
+          setDefinition('Definition not available.');
+        } finally {
+          setIsLoadingDefinition(false);
+        }
+      }, []);
+      
+      // Fetch random words from API
+      const fetchWords = useCallback(async (count) => {
+        try {
+          const response = await fetch(`${RANDOM_WORD_API}?number=${count}`);
+          if (!response.ok) throw new Error('API failed');
+          const words = await response.json();
+          return words.filter(word => 
+            word.length > 2 && 
+            word.length < 15 && 
+            /^[a-zA-Z]+$/.test(word) &&
+            !usedWordsRef.current.has(word)
+          );
+        } catch (error) {
+          console.error('Failed to fetch words:', error);
+          setIsOffline(true);
+          return [];
+        }
+      }, []);
+      
+      // Fill word queue
+      const fillQueue = useCallback(async () => {
+        if (wordQueueRef.current.length >= WORDS_TO_QUEUE) return;
+        
+        const newWords = await fetchWords(FETCH_BATCH_SIZE);
+        if (newWords.length > 0) {
+          setWordQueue(prev => [...prev, ...newWords].slice(0, WORDS_TO_QUEUE));
+          setIsOffline(false);
+        } else if (wordQueueRef.current.length === 0) {
+          // Use fallback words
+          const fallbackWords = FALLBACK_WORDS.map(item => item.word);
+          setWordQueue(fallbackWords);
+        }
+      }, [fetchWords]);
+      
+      // Get next word from queue
+      const getNextWord = useCallback(() => {
+        if (wordQueueRef.current.length === 0) {
+          // Use fallback if queue is empty
+          const fallbackWord = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
+          return fallbackWord.word;
+        }
+        
+        const word = wordQueueRef.current[0];
+        setWordQueue(prev => prev.slice(1));
+        usedWordsRef.current.add(word);
+        
+        // Refill queue if getting low
+        if (wordQueueRef.current.length < 10) {
+          fillQueue();
+        }
+        
+        return word;
+      }, [fillQueue]);
+      
+      // Start a new round
+      const startNewRound = useCallback(() => {
+        // Update stats for previous word
+        if (currentWord && rhymeCount > 0) {
+          setSessionStats(prev => {
+            const newTotal = prev.totalRhymes + rhymeCount;
+            const newWords = prev.totalWords + 1;
+            const newAverage = newTotal / newWords;
+            const newBest = rhymeCount > prev.bestWord.count 
+              ? { word: currentWord, count: rhymeCount }
+              : prev.bestWord;
+            
+            return {
+              totalWords: newWords,
+              totalRhymes: newTotal,
+              averageRhymes: newAverage,
+              bestWord: newBest
+            };
+          });
+        }
+        
+        // Reset for new word
+        setRhymeCount(0);
+        setDefinition('');
+        setShowDefinition(false);
+        const newWord = getNextWord();
+        setCurrentWord(newWord);
+        
+        // Start timer if playing
+        if (isPlaying) {
+          startTimer();
+        }
+      }, [currentWord, rhymeCount, isPlaying, getNextWord]);
+      
+      // Timer management
+      const startTimer = useCallback(() => {
+        stopTimer();
+        startTimeRef.current = Date.now();
+        setTimeLeft(100);
+        
+        timerRef.current = setInterval(() => {
+          const elapsed = Date.now() - startTimeRef.current;
+          const percentage = Math.max(0, 100 - (elapsed / (duration * 1000)) * 100);
+          
+          if (percentage <= 0) {
+            startNewRound();
+          } else {
+            setTimeLeft(percentage);
+          }
+        }, 100);
+      }, [duration, startNewRound]);
+      
+      const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }, []);
+      
+      const pauseTimer = useCallback(() => {
+        stopTimer();
+      }, [stopTimer]);
+      
+      const resumeTimer = useCallback(() => {
+        if (!isPlaying || !currentWord) return;
+        
+        // Calculate remaining time based on current timeLeft
+        const remainingMs = (timeLeft / 100) * duration * 1000;
+        startTimeRef.current = Date.now() - (duration * 1000 - remainingMs);
+        
+        timerRef.current = setInterval(() => {
+          const elapsed = Date.now() - startTimeRef.current;
+          const percentage = Math.max(0, 100 - (elapsed / (duration * 1000)) * 100);
+          
+          if (percentage <= 0) {
+            startNewRound();
+          } else {
+            setTimeLeft(percentage);
+          }
+        }, 100);
+      }, [isPlaying, currentWord, timeLeft, duration, startNewRound]);
+      
+      // Handle play/pause
+      const togglePlay = useCallback(() => {
+        if (!isPlaying) {
+          setIsPlaying(true);
+          if (!currentWord) {
+            startNewRound();
+          } else {
+            resumeTimer();
+          }
+        } else {
+          setIsPlaying(false);
+          pauseTimer();
+        }
+      }, [isPlaying, currentWord, startNewRound, resumeTimer, pauseTimer]);
+      
+      // Handle skip
+      const handleSkip = useCallback(() => {
+        startNewRound();
+      }, [startNewRound]);
+      
+      // Handle rhyme count
+      const incrementRhymeCount = useCallback(() => {
+        setRhymeCount(prev => prev + 1);
+      }, []);
+      
+      // Handle word press for definition
+      const handleWordPress = useCallback(() => {
+        if (!currentWord) return;
+        
+        // Toggle definition visibility
+        setShowDefinition(prev => !prev);
+        
+        // Fetch definition if not already loaded
+        if (!definition && !isLoadingDefinition && !showDefinition) {
+          fetchDefinition(currentWord);
+        }
+      }, [currentWord, definition, isLoadingDefinition, showDefinition, fetchDefinition]);
+      
+      // Handle duration change
+      const handleDurationChange = useCallback((e) => {
+        const newDuration = parseInt(e.target.value);
+        setDuration(newDuration);
+        
+        // If playing, restart timer with new duration
+        if (isPlaying && currentWord) {
+          setTimeLeft(100);
+          startTimer();
+        }
+      }, [isPlaying, currentWord, startTimer]);
+      
+      // Initialize queue on mount
+      useEffect(() => {
+        fillQueue();
+      }, [fillQueue]);
+      
+      // Start the game automatically on mount
+      useEffect(() => {
+        if (wordQueue.length > 0 && !currentWord) {
+          startNewRound();
+        }
+      }, [wordQueue, currentWord, startNewRound]);
+      
+      // Cleanup timer on unmount
+      useEffect(() => {
+        return () => stopTimer();
+      }, [stopTimer]);
+      
+      return (
+        <div id="root">
+          <header className="header">
+            <div className="header-group">
+              <button onClick={togglePlay}>
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <select value={duration} onChange={handleDurationChange}>
+                <option value="5">5s</option>
+                <option value="10">10s</option>
+                <option value="15">15s</option>
+                <option value="30">30s</option>
+                <option value="60">60s</option>
+                <option value="120">120s</option>
+              </select>
+            </div>
+            <div className="header-group">
+              <button onClick={handleSkip} disabled={!currentWord}>
+                Skip
+              </button>
+            </div>
+          </header>
+          
+          <main className="main-content">
+            <div className="stats">
+              <h3>Session Stats</h3>
+              <p>Words: {sessionStats.totalWords}</p>
+              <p>Total Rhymes: {sessionStats.totalRhymes}</p>
+              <p>Average: {sessionStats.averageRhymes.toFixed(1)}</p>
+              {sessionStats.bestWord.word && (
+                <p>Best: {sessionStats.bestWord.word} ({sessionStats.bestWord.count})</p>
+              )}
+            </div>
+            
+            <div className="word-container">
+              <div 
+                className={`word-display ${currentWord ? 'new-word' : ''}`}
+                onMouseDown={handleWordPress}
+                onTouchStart={handleWordPress}
+              >
+                {currentWord || 'Press Play to Start'}
+              </div>
+              <div className="definition">
+                {showDefinition && (
+                  isLoadingDefinition ? 'Loading definition...' : definition
+                )}
+              </div>
+              {isOffline && (
+                <div className="error">
+                  Offline mode - using fallback words
+                </div>
+              )}
+            </div>
+            
+            {isPlaying && currentWord && (
+              <div 
+                className="timer-bar" 
+                style={{ width: `${timeLeft}%` }}
+              />
+            )}
+          </main>
+          
+          <footer className="footer">
+            <button className="count-button" onClick={incrementRhymeCount}>
+              <span className="count-label">Rhymes</span>
+              {rhymeCount}
+            </button>
+          </footer>
+        </div>
+      );
+    }
+    
+    // Render the app
+    ReactDOM.render(<RhymePracticeApp />, document.getElementById('root'));
+  </script>
+</body>
+</html> 
