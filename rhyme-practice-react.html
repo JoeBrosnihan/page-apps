@@ -1,3 +1,28 @@
+<!--
+  Rhyme Practice Game - React Version
+  
+  Context: This is a training tool for freestyle rap and rhyming skills. The game presents 
+  random words and challenges users to think of as many rhyming words as possible within 
+  a time limit. This helps develop:
+  - Quick rhyme generation for freestyle rapping
+  - Vocabulary expansion through new word discovery
+  - Mental agility in finding phonetic patterns
+  
+  How it works:
+  - Random words are fetched from an API and displayed one at a time
+  - A countdown timer (5-120 seconds) creates pressure to think quickly
+  - Users tap/click the large button to count each rhyme they think of
+  - Tapping the word reveals its definition for learning new vocabulary
+  - Session stats track progress and identify best performances
+  - The game auto-advances when the timer expires
+  
+  This React version improves upon the original with:
+  - Better state management and timer logic
+  - Automatic game start without user interaction
+  - Persistent definition display during rounds
+  - Accurate session statistics tracking
+  - Smoother animations and transitions
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -274,11 +299,18 @@
       const startTimeRef = useRef(null);
       const wordQueueRef = useRef([]);
       const usedWordsRef = useRef(new Set());
+      const currentWordRef = useRef(null); // Track current word to prevent timer restarts
+      const rhymeCountRef = useRef(0); // Track current rhyme count for timer access
       
       // Update queue ref when state changes
       useEffect(() => {
         wordQueueRef.current = wordQueue;
       }, [wordQueue]);
+      
+      // Update rhyme count ref when state changes
+      useEffect(() => {
+        rhymeCountRef.current = rhymeCount;
+      }, [rhymeCount]);
       
       // Fetch definition for a word
       const fetchDefinition = useCallback(async (word) => {
@@ -359,14 +391,17 @@
       
       // Start a new round
       const startNewRound = useCallback(() => {
-        // Update stats for previous word
-        if (currentWord && rhymeCount > 0) {
+        // Update stats for previous word (always update, even with 0 rhymes)
+        if (currentWordRef.current) {
+          const completedWord = currentWordRef.current; // Use ref to get the actual current word
+          const completedCount = rhymeCountRef.current; // Store the count we're completing
+          
           setSessionStats(prev => {
-            const newTotal = prev.totalRhymes + rhymeCount;
+            const newTotal = prev.totalRhymes + completedCount;
             const newWords = prev.totalWords + 1;
             const newAverage = newTotal / newWords;
-            const newBest = rhymeCount > prev.bestWord.count 
-              ? { word: currentWord, count: rhymeCount }
+            const newBest = completedCount > prev.bestWord.count 
+              ? { word: completedWord, count: completedCount }
               : prev.bestWord;
             
             return {
@@ -384,12 +419,7 @@
         setShowDefinition(false);
         const newWord = getNextWord();
         setCurrentWord(newWord);
-        
-        // Start timer if playing
-        if (isPlaying) {
-          startTimer();
-        }
-      }, [currentWord, rhymeCount, isPlaying, getNextWord]);
+      }, [getNextWord]);
       
       // Timer management
       const startTimer = useCallback(() => {
@@ -403,11 +433,15 @@
           
           if (percentage <= 0) {
             startNewRound();
+            // Start timer for next word if still playing
+            if (isPlaying) {
+              setTimeout(() => startTimer(), 0);
+            }
           } else {
             setTimeLeft(percentage);
           }
         }, 100);
-      }, [duration, startNewRound]);
+      }, [duration, startNewRound, isPlaying]);
       
       const stopTimer = useCallback(() => {
         if (timerRef.current) {
@@ -457,7 +491,10 @@
       // Handle skip
       const handleSkip = useCallback(() => {
         startNewRound();
-      }, [startNewRound]);
+        if (isPlaying) {
+          setTimeout(() => startTimer(), 0);
+        }
+      }, [startNewRound, isPlaying, startTimer]);
       
       // Handle rhyme count
       const incrementRhymeCount = useCallback(() => {
@@ -482,6 +519,9 @@
         const newDuration = parseInt(e.target.value);
         setDuration(newDuration);
         
+        // Reset the currentWordRef to force timer restart with new duration
+        currentWordRef.current = null;
+        
         // If playing, restart timer with new duration
         if (isPlaying && currentWord) {
           setTimeLeft(100);
@@ -500,6 +540,14 @@
           startNewRound();
         }
       }, [wordQueue, currentWord, startNewRound]);
+      
+      // Start timer when we have a current word and are playing
+      useEffect(() => {
+        if (currentWord && isPlaying && currentWord !== currentWordRef.current) {
+          currentWordRef.current = currentWord;
+          startTimer();
+        }
+      }, [currentWord, isPlaying, startTimer, duration]);
       
       // Cleanup timer on unmount
       useEffect(() => {
@@ -536,7 +584,7 @@
               <p>Total Rhymes: {sessionStats.totalRhymes}</p>
               <p>Average: {sessionStats.averageRhymes.toFixed(1)}</p>
               {sessionStats.bestWord.word && (
-                <p>Best: {sessionStats.bestWord.word} ({sessionStats.bestWord.count})</p>
+                <p>Best: {sessionStats.bestWord.word.charAt(0).toUpperCase() + sessionStats.bestWord.word.slice(1)} ({sessionStats.bestWord.count})</p>
               )}
             </div>
             
@@ -546,7 +594,7 @@
                 onMouseDown={handleWordPress}
                 onTouchStart={handleWordPress}
               >
-                {currentWord || 'Press Play to Start'}
+                {currentWord || 'Loading...'}
               </div>
               <div className="definition">
                 {showDefinition && (
