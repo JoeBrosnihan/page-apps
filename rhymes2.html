@@ -258,6 +258,16 @@
     const WORDS_TO_QUEUE = 50; // Keep a larger buffer of words
     const FETCH_BATCH_SIZE = 100; // Fetch many words at once
     
+    // Count syllables in a word using a simple heuristic
+    function countSyllables(word) {
+      word = word.toLowerCase();
+      if (word.length <= 3) return 1; // Short words are usually one syllable
+      word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, ''); // Remove silent 'e'
+      word = word.replace(/^y/, ''); // Remove leading 'y'
+      const syllableMatches = word.match(/[aeiouy]{1,2}/g);
+      return syllableMatches ? syllableMatches.length : 1;
+    }
+    
     // Fallback words if API fails
     const FALLBACK_WORDS = [
       { word: "medieval", definition: "Relating to the Middle Ages." },
@@ -285,6 +295,7 @@
       const [isOffline, setIsOffline] = useState(false);
       const [wordQueue, setWordQueue] = useState([]);
       const [isLoadingDefinition, setIsLoadingDefinition] = useState(false);
+      const [syllableCount, setSyllableCount] = useState("2");
       
       // Stats tracking
       const [sessionStats, setSessionStats] = useState({
@@ -345,14 +356,15 @@
             word.length > 2 && 
             word.length < 15 && 
             /^[a-zA-Z]+$/.test(word) &&
-            !usedWordsRef.current.has(word)
+            !usedWordsRef.current.has(word) &&
+            (syllableCount === "any" || countSyllables(word) === parseInt(syllableCount))
           );
         } catch (error) {
           console.error('Failed to fetch words:', error);
           setIsOffline(true);
           return [];
         }
-      }, []);
+      }, [syllableCount]);
       
       // Fill word queue
       const fillQueue = useCallback(async () => {
@@ -529,6 +541,11 @@
         }
       }, [isPlaying, currentWord, startTimer]);
       
+      // Handle syllable change
+      const handleSyllableChange = useCallback((e) => {
+        setSyllableCount(e.target.value);
+      }, []);
+      
       // Initialize queue on mount
       useEffect(() => {
         fillQueue();
@@ -568,6 +585,13 @@
                 <option value="30">30s</option>
                 <option value="60">60s</option>
                 <option value="120">120s</option>
+              </select>
+              <select value={syllableCount} onChange={handleSyllableChange}>
+                <option value="any">Any</option>
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
               </select>
             </div>
             <div className="header-group">
