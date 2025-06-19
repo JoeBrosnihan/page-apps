@@ -52,24 +52,73 @@
             padding: 30px 20px;
         }
 
-        .origin-section {
-            background: #fff3cd;
-            border: 2px solid #ffeaa7;
-            border-radius: 15px;
+        .settings-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .settings-toggle {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8f9fa;
+            transition: background-color 0.2s ease;
+            user-select: none;
+        }
+
+        .settings-toggle:hover {
+            background: #e9ecef;
+        }
+
+        .settings-icon {
+            font-size: 1.1rem;
+        }
+
+        .settings-text {
+            font-weight: 500;
+            color: #495057;
+            flex: 1;
+        }
+
+        .settings-chevron {
+            font-size: 0.8rem;
+            color: #6c757d;
+            transition: transform 0.2s ease;
+        }
+
+        .settings-chevron.open {
+            transform: rotate(90deg);
+        }
+
+        .settings-content {
+            background: white;
+            border-top: 1px solid #dee2e6;
             padding: 20px;
+        }
+
+        .setting-group {
             margin-bottom: 20px;
         }
 
-        .origin-label {
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
             font-weight: 600;
-            color: #856404;
+            color: #495057;
             margin-bottom: 12px;
             font-size: 1rem;
         }
 
         .origin-display {
-            background: white;
-            border: 2px solid #ffeaa7;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
             border-radius: 10px;
             padding: 12px;
             font-family: 'Courier New', monospace;
@@ -77,19 +126,19 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            color: #856404;
+            color: #495057;
             user-select: all;
             -webkit-user-select: all;
         }
 
         .origin-display:hover {
-            border-color: #f39c12;
-            background: #fef9e7;
+            border-color: #007bff;
+            background: #e3f2fd;
         }
 
         .origin-input {
             width: 100%;
-            border: 2px solid #f39c12;
+            border: 2px solid #007bff;
             border-radius: 10px;
             padding: 12px;
             font-family: 'Courier New', monospace;
@@ -100,13 +149,41 @@
         }
 
         .origin-input:focus {
-            border-color: #e67e22;
-            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.25);
+            border-color: #0056b3;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
         }
 
-        .origin-hint {
+        .distance-inputs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .distance-input {
+            flex: 1;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1rem;
+            text-align: center;
+            background: white;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .distance-input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+
+        .distance-separator {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .setting-hint {
             font-size: 0.8rem;
-            color: #856404;
+            color: #6c757d;
             margin-top: 8px;
             text-align: center;
         }
@@ -282,13 +359,22 @@
                 padding: 20px 15px;
             }
             
-            .origin-section {
+            .settings-toggle {
+                padding: 12px 15px;
+            }
+            
+            .settings-content {
                 padding: 15px;
             }
             
             .origin-display, .origin-input {
                 font-size: 0.9rem;
                 padding: 10px;
+            }
+            
+            .distance-input {
+                font-size: 0.9rem;
+                padding: 8px;
             }
             
             .coordinates {
@@ -304,17 +390,36 @@
     <div class="container">
         <div class="header">
             <h1>🎯 Random Location Generator</h1>
-            <p>Generate random coordinates 2-5 miles away</p>
+            <p>Generate random coordinates 1-3 miles away</p>
         </div>
 
         <div class="main-content">
-            <div class="origin-section">
-                <div class="origin-label">🏠 Origin Point</div>
-                <div id="originCoords" class="origin-display" onclick="editOrigin()">
-                    Click to set origin coordinates
+            <div class="settings-section">
+                <div class="settings-toggle" onclick="toggleSettings()">
+                    <span class="settings-icon">⚙️</span>
+                    <span class="settings-text">Settings</span>
+                    <span id="settingsChevron" class="settings-chevron">▶</span>
                 </div>
-                <input type="text" id="originInput" class="origin-input" placeholder="Paste coordinates (e.g., 37.54186° N, 122.29651° W)" onblur="saveOrigin()" onkeypress="handleOriginKeypress(event)" style="display: none;">
-                <div class="origin-hint">Tap to change origin point</div>
+                <div id="settingsContent" class="settings-content" style="display: none;">
+                    <div class="setting-group">
+                        <div class="setting-label">🏠 Origin Point</div>
+                        <div id="originCoords" class="origin-display" onclick="editOrigin()">
+                            Click to set origin coordinates
+                        </div>
+                        <input type="text" id="originInput" class="origin-input" placeholder="Paste coordinates (e.g., 37.54186° N, 122.29651° W)" onblur="saveOrigin()" onkeypress="handleOriginKeypress(event)" style="display: none;">
+                        <div class="setting-hint">Tap to change origin point</div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <div class="setting-label">📏 Distance Range (miles)</div>
+                        <div class="distance-inputs">
+                            <input type="number" id="minDistance" class="distance-input" min="1" max="50" step="1" placeholder="Min" onchange="saveDistanceRange()">
+                            <span class="distance-separator">to</span>
+                            <input type="number" id="maxDistance" class="distance-input" min="1" max="50" step="1" placeholder="Max" onchange="saveDistanceRange()">
+                        </div>
+                        <div class="setting-hint">Random locations will be generated within this range</div>
+                    </div>
+                </div>
             </div>
 
             <div class="current-location">
@@ -342,24 +447,26 @@
         /*
          * Random Location Generator
          * 
-         * Purpose: Generate random coordinates within 2-5 miles of a user-defined origin point
+         * Purpose: Generate random coordinates within a configurable distance of a user-defined origin point
+         * Default range: 1-3 miles, but can be customized in settings
          * Origin coordinates can be pasted/input by the user and are stored in localStorage
          * 
          * Key features:
          * - Mobile-first design for easy coordinate copying
-         * - Local storage persistence of coordinate history and origin point
-         * - Flexible origin point input for different locations
+         * - Local storage persistence of coordinate history, origin point, and distance range
+         * - Configurable distance range and origin point (hidden in collapsible settings)
          * - Touch-friendly interface optimized for mobile map app usage
          */
         
         // Configuration constants
-        const MIN_DISTANCE_MILES = 2;
-        const MAX_DISTANCE_MILES = 5;
+        const DEFAULT_MIN_DISTANCE = 1;
+        const DEFAULT_MAX_DISTANCE = 3;
         const MILES_TO_DEGREES_LAT = 0.014484; // Approximate conversion
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadOrigin();
+            loadDistanceRange();
             loadHistory();
             if (getOrigin()) {
                 generateNewLocation();
@@ -380,7 +487,8 @@
             }
             
             // Generate random distance between min and max (in miles)
-            const distance = Math.random() * (MAX_DISTANCE_MILES - MIN_DISTANCE_MILES) + MIN_DISTANCE_MILES;
+            const range = getDistanceRange();
+            const distance = Math.random() * (range.max - range.min) + range.min;
             
             // Generate random angle (0 to 2π)
             const angle = Math.random() * 2 * Math.PI;
@@ -640,6 +748,76 @@
             }
             
             return { lat, lng };
+        }
+
+        /**
+         * Toggle settings section visibility
+         */
+        function toggleSettings() {
+            const content = document.getElementById('settingsContent');
+            const chevron = document.getElementById('settingsChevron');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                chevron.classList.add('open');
+            } else {
+                content.style.display = 'none';
+                chevron.classList.remove('open');
+            }
+        }
+
+        /**
+         * Get the current distance range from localStorage or defaults
+         */
+        function getDistanceRange() {
+            const stored = localStorage.getItem('distanceRange');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+            return { min: DEFAULT_MIN_DISTANCE, max: DEFAULT_MAX_DISTANCE };
+        }
+
+        /**
+         * Load and display the distance range inputs
+         */
+        function loadDistanceRange() {
+            const range = getDistanceRange();
+            document.getElementById('minDistance').value = range.min;
+            document.getElementById('maxDistance').value = range.max;
+        }
+
+        /**
+         * Save the distance range from inputs
+         */
+        function saveDistanceRange() {
+            const minInput = document.getElementById('minDistance');
+            const maxInput = document.getElementById('maxDistance');
+            
+            const min = parseFloat(minInput.value);
+            const max = parseFloat(maxInput.value);
+            
+            // Validate inputs
+            if (isNaN(min) || isNaN(max) || min <= 0 || max <= 0) {
+                showToast('Please enter valid positive numbers');
+                loadDistanceRange(); // Reset to saved values
+                return;
+            }
+            
+            if (min >= max) {
+                showToast('Minimum distance must be less than maximum');
+                loadDistanceRange(); // Reset to saved values
+                return;
+            }
+            
+            // Save to localStorage
+            const range = { min, max };
+            localStorage.setItem('distanceRange', JSON.stringify(range));
+            showToast(`Distance range saved: ${min}-${max} miles`);
+            
+            // Regenerate location with new range if origin exists
+            if (getOrigin()) {
+                generateNewLocation();
+            }
         }
     </script>
 </body>
