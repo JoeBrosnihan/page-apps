@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Location Generator</title>
+    <style>
+        /* Mobile-first CSS with emphasis on touch-friendly interface and easy coordinate copying */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .main-content {
+            padding: 30px 20px;
+        }
+
+        .origin-section {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .origin-label {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .origin-display {
+            background: white;
+            border: 2px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #856404;
+            user-select: all;
+            -webkit-user-select: all;
+        }
+
+        .origin-display:hover {
+            border-color: #f39c12;
+            background: #fef9e7;
+        }
+
+        .origin-input {
+            width: 100%;
+            border: 2px solid #f39c12;
+            border-radius: 10px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            text-align: center;
+            background: white;
+            outline: none;
+        }
+
+        .origin-input:focus {
+            border-color: #e67e22;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.25);
+        }
+
+        .origin-hint {
+            font-size: 0.8rem;
+            color: #856404;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .current-location {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 2px solid #e9ecef;
+        }
+
+        .location-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .coordinates {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            user-select: all;
+            -webkit-user-select: all;
+        }
+
+        .coordinates:hover, .coordinates:active {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+            transform: translateY(-2px);
+        }
+
+        .copy-hint {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .distance-info {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .history-section {
+            border-top: 1px solid #e9ecef;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .history-title {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #e9ecef;
+            user-select: all;
+            -webkit-user-select: all;
+        }
+
+        .history-item:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+
+        .history-timestamp {
+            font-size: 0.7rem;
+            color: #adb5bd;
+            margin-top: 5px;
+        }
+
+        .clear-history {
+            background: none;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .clear-history:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(-100px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .main-content {
+                padding: 20px 15px;
+            }
+            
+            .origin-section {
+                padding: 15px;
+            }
+            
+            .origin-display, .origin-input {
+                font-size: 0.9rem;
+                padding: 10px;
+            }
+            
+            .coordinates {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast notification for copy feedback -->
+    <div id="toast" class="toast">Coordinates copied to clipboard!</div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Random Location Generator</h1>
+            <p>Generate random coordinates 2-5 miles away</p>
+        </div>
+
+        <div class="main-content">
+            <div class="origin-section">
+                <div class="origin-label">🏠 Origin Point</div>
+                <div id="originCoords" class="origin-display" onclick="editOrigin()">
+                    Click to set origin coordinates
+                </div>
+                <input type="text" id="originInput" class="origin-input" placeholder="Paste coordinates (e.g., 37.54186° N, 122.29651° W)" onblur="saveOrigin()" onkeypress="handleOriginKeypress(event)" style="display: none;">
+                <div class="origin-hint">Tap to change origin point</div>
+            </div>
+
+            <div class="current-location">
+                <div class="location-label">📍 Current Generated Location</div>
+                <div id="coordinates" class="coordinates" onclick="copyCoordinates(this)">
+                    Set origin coordinates first
+                </div>
+                <div class="copy-hint">Tap coordinates to copy to clipboard</div>
+                <div id="distanceInfo" class="distance-info"></div>
+            </div>
+
+            <button class="generate-btn" onclick="generateNewLocation()">
+                🔄 Generate New Location
+            </button>
+        </div>
+
+        <div class="history-section">
+            <div class="history-title">📋 Location History</div>
+            <div id="historyList" class="history-list"></div>
+            <button class="clear-history" onclick="clearHistory()">Clear History</button>
+        </div>
+    </div>
+
+    <script>
+        /*
+         * Random Location Generator
+         * 
+         * Purpose: Generate random coordinates within 2-5 miles of a user-defined origin point
+         * Origin coordinates can be pasted/input by the user and are stored in localStorage
+         * 
+         * Key features:
+         * - Mobile-first design for easy coordinate copying
+         * - Local storage persistence of coordinate history and origin point
+         * - Flexible origin point input for different locations
+         * - Touch-friendly interface optimized for mobile map app usage
+         */
+        
+        // Configuration constants
+        const MIN_DISTANCE_MILES = 2;
+        const MAX_DISTANCE_MILES = 5;
+        const MILES_TO_DEGREES_LAT = 0.014484; // Approximate conversion
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrigin();
+            loadHistory();
+            if (getOrigin()) {
+                generateNewLocation();
+            }
+        });
+
+        /**
+         * Generate a random location within the specified distance range
+         * Uses polar coordinates to ensure uniform distribution within the annulus
+         */
+        function generateNewLocation() {
+            const origin = getOrigin();
+            
+            if (!origin) {
+                document.getElementById('coordinates').textContent = 'Set origin coordinates first';
+                document.getElementById('distanceInfo').textContent = '';
+                return;
+            }
+            
+            // Generate random distance between min and max (in miles)
+            const distance = Math.random() * (MAX_DISTANCE_MILES - MIN_DISTANCE_MILES) + MIN_DISTANCE_MILES;
+            
+            // Generate random angle (0 to 2π)
+            const angle = Math.random() * 2 * Math.PI;
+            
+            // Convert distance to degrees
+            const latOffset = distance * MILES_TO_DEGREES_LAT * Math.cos(angle);
+            const lngOffset = distance * MILES_TO_DEGREES_LAT * Math.sin(angle) / Math.cos(origin.lat * Math.PI / 180);
+            
+            // Calculate new coordinates
+            const newLat = origin.lat + latOffset;
+            const newLng = origin.lng + lngOffset;
+            
+            // Format coordinates
+            const formattedCoords = formatCoordinates(newLat, newLng);
+            
+            // Update display
+            document.getElementById('coordinates').textContent = formattedCoords;
+            document.getElementById('distanceInfo').textContent = `${distance.toFixed(1)} miles from origin`;
+            
+            // Save to history
+            saveToHistory(formattedCoords, distance);
+            
+            // Refresh history display
+            loadHistory();
+        }
+
+        /**
+         * Format coordinates for easy copying to maps applications
+         * Uses degree format with cardinal directions: "37.54186° N, 122.29651° W"
+         */
+        function formatCoordinates(lat, lng) {
+            const latDir = lat >= 0 ? 'N' : 'S';
+            const lngDir = lng >= 0 ? 'E' : 'W';
+            const absLat = Math.abs(lat);
+            const absLng = Math.abs(lng);
+            return `${absLat.toFixed(5)}° ${latDir}, ${absLng.toFixed(5)}° ${lngDir}`;
+        }
+
+        /**
+         * Copy coordinates to clipboard with visual feedback
+         */
+        function copyCoordinates(element) {
+            const text = element.textContent;
+            
+            if (text === 'Set origin coordinates first' || text === 'Click to generate coordinates') {
+                if (!getOrigin()) {
+                    showToast('Please set origin coordinates first');
+                    return;
+                }
+                generateNewLocation();
+                return;
+            }
+            
+            navigator.clipboard.writeText(text).then(function() {
+                showToast('Coordinates copied to clipboard!');
+            }).catch(function() {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Coordinates copied to clipboard!');
+            });
+        }
+
+        /**
+         * Show toast notification
+         */
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        /**
+         * Save generated coordinates to local storage
+         */
+        function saveToHistory(coordinates, distance) {
+            let history = JSON.parse(localStorage.getItem('locationHistory') || '[]');
+            
+            const entry = {
+                coordinates: coordinates,
+                distance: distance.toFixed(1),
+                timestamp: new Date().toLocaleString()
+            };
+            
+            // Add to beginning of array
+            history.unshift(entry);
+            
+            // Keep only last 20 entries
+            history = history.slice(0, 20);
+            
+            localStorage.setItem('locationHistory', JSON.stringify(history));
+        }
+
+        /**
+         * Load and display coordinate history from local storage
+         */
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('locationHistory') || '[]');
+            const historyList = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<div style="text-align: center; color: #adb5bd; font-style: italic;">No locations generated yet</div>';
+                return;
+            }
+            
+            historyList.innerHTML = history.map(entry => `
+                <div class="history-item" onclick="copyCoordinates(this)">
+                    <div>${entry.coordinates}</div>
+                    <div class="history-timestamp">${entry.distance} miles • ${entry.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Clear all history from local storage
+         */
+        function clearHistory() {
+            if (confirm('Clear all location history?')) {
+                localStorage.removeItem('locationHistory');
+                loadHistory();
+                showToast('History cleared');
+            }
+        }
+
+        /**
+         * Get the current origin coordinates from localStorage
+         */
+        function getOrigin() {
+            const stored = localStorage.getItem('originCoordinates');
+            return stored ? JSON.parse(stored) : null;
+        }
+
+        /**
+         * Load and display the origin coordinates
+         */
+        function loadOrigin() {
+            const origin = getOrigin();
+            const display = document.getElementById('originCoords');
+            
+            if (origin) {
+                display.textContent = formatCoordinates(origin.lat, origin.lng);
+            } else {
+                display.textContent = 'Click to set origin coordinates';
+            }
+        }
+
+        /**
+         * Show the origin input field for editing
+         */
+        function editOrigin() {
+            const display = document.getElementById('originCoords');
+            const input = document.getElementById('originInput');
+            
+            // Pre-fill with current coordinates if they exist
+            const origin = getOrigin();
+            if (origin) {
+                input.value = formatCoordinates(origin.lat, origin.lng);
+            }
+            
+            display.style.display = 'none';
+            input.style.display = 'block';
+            input.focus();
+            input.select();
+        }
+
+        /**
+         * Save the origin coordinates from input
+         */
+        function saveOrigin() {
+            const input = document.getElementById('originInput');
+            const display = document.getElementById('originCoords');
+            const value = input.value.trim();
+            
+            if (value) {
+                const coords = parseCoordinates(value);
+                if (coords) {
+                    localStorage.setItem('originCoordinates', JSON.stringify(coords));
+                    display.textContent = formatCoordinates(coords.lat, coords.lng);
+                    showToast('Origin coordinates saved');
+                    
+                    // Generate new location with new origin
+                    generateNewLocation();
+                                 } else {
+                     showToast('Invalid coordinate format. Use: 37.54186° N, 122.29651° W');
+                     // Keep input visible for correction
+                     input.focus();
+                     return;
+                 }
+            } else {
+                display.textContent = 'Click to set origin coordinates';
+            }
+            
+            input.style.display = 'none';
+            display.style.display = 'block';
+        }
+
+        /**
+         * Handle keypress in origin input (save on Enter)
+         */
+        function handleOriginKeypress(event) {
+            if (event.key === 'Enter') {
+                saveOrigin();
+            }
+        }
+
+        /**
+         * Parse coordinate string into lat/lng object
+         * Accepts multiple formats:
+         * - "37.54186° N, 122.29651° W" (preferred format)
+         * - "37.54186, -122.29651" (decimal format for backward compatibility)
+         */
+        function parseCoordinates(coordStr) {
+            // Clean up the input string
+            let cleanStr = coordStr.trim();
+            
+            // Check if it's the new format with degree symbols and cardinal directions
+            const degreeFormat = /^(\d+\.?\d*)°?\s*([NS]),?\s*(\d+\.?\d*)°?\s*([EW])$/i;
+            const degreeMatch = cleanStr.match(degreeFormat);
+            
+            if (degreeMatch) {
+                let lat = parseFloat(degreeMatch[1]);
+                let lng = parseFloat(degreeMatch[3]);
+                
+                // Apply direction signs
+                if (degreeMatch[2].toUpperCase() === 'S') lat = -lat;
+                if (degreeMatch[4].toUpperCase() === 'W') lng = -lng;
+                
+                // Validate ranges
+                if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                    return null;
+                }
+                
+                return { lat, lng };
+            }
+            
+            // Fall back to decimal format "37.54186, -122.29651"
+            const parts = cleanStr.replace(/\s+/g, ' ').split(',');
+            
+            if (parts.length !== 2) {
+                return null;
+            }
+            
+            const lat = parseFloat(parts[0].trim());
+            const lng = parseFloat(parts[1].trim());
+            
+            // Validate ranges
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                return null;
+            }
+            
+            return { lat, lng };
+        }
+    </script>
+</body>
+</html> 
