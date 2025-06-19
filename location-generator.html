@@ -603,7 +603,7 @@
             }
             
             historyList.innerHTML = history.map(entry => `
-                <div class="history-item" onclick="copyCoordinates(this)">
+                <div class="history-item" onclick="copyHistoryCoordinates(this)" data-coordinates="${entry.coordinates}">
                     <div>${entry.coordinates}</div>
                     <div class="history-timestamp">${entry.distance} miles • ${entry.timestamp}</div>
                 </div>
@@ -764,6 +764,27 @@
                 content.style.display = 'none';
                 chevron.classList.remove('open');
             }
+        }
+
+        /**
+         * Copy coordinates from history item to clipboard
+         * Only copies the coordinates, not the metadata (distance/timestamp)
+         */
+        function copyHistoryCoordinates(element) {
+            const coordinates = element.getAttribute('data-coordinates');
+            
+            navigator.clipboard.writeText(coordinates).then(function() {
+                showToast('Coordinates copied to clipboard!');
+            }).catch(function() {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = coordinates;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Coordinates copied to clipboard!');
+            });
         }
 
         /**
