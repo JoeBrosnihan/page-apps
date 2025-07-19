@@ -29,6 +29,27 @@
             display: flex;
             margin-bottom: 20px;
         }
+        .exercise-weight-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .exercise-weight-group > * {
+            flex: 1;
+        }
+        #exerciseSelect {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+        #weightInput {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
         #repInput {
             flex-grow: 1;
             padding: 10px;
@@ -49,6 +70,43 @@
         button:hover {
             background-color: #2980b9;
         }
+        .full-width-button {
+            width: 100%;
+            border-radius: 4px;
+            margin-top: 20px;
+            background-color: #27ae60;
+        }
+        .full-width-button:hover {
+            background-color: #219a52;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-group button {
+            flex: 1;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .copy-button {
+            background-color: #9b59b6;
+            color: white;
+        }
+        .copy-button:hover {
+            background-color: #8e44ad;
+        }
+        .clear-button {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .clear-button:hover {
+            background-color: #c0392b;
+        }
         .stats {
             background-color: white;
             border-radius: 8px;
@@ -62,6 +120,12 @@
             color: #2c3e50;
             display: block;
             text-align: center;
+        }
+        #currentExerciseInfo {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 10px;
+            font-size: 18px;
         }
         #countdown {
             font-size: 24px;
@@ -96,6 +160,51 @@
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-top: 20px;
+        }
+        .analytics-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .analytics-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-item {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .chart-item h4 {
+            margin: 0 0 15px 0;
+            color: #34495e;
+            font-size: 14px;
+            text-align: center;
+        }
+        .chart-item canvas {
+            width: 100% !important;
+            height: 200px !important;
+        }
+        .full-width-chart {
+            grid-column: 1 / -1;
+        }
+        .full-width-chart canvas {
+            height: 300px !important;
+        }
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
         }
         .settings {
             background-color: white;
@@ -147,13 +256,24 @@
             transition: background-color 0.3s;
         }
         #quickButtons button:hover {
-            background-color: #2980b9;
+                        background-color: #2980b9;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Workout Rep Counter</h1>
+        
+        <div class="exercise-weight-group">
+            <select id="exerciseSelect">
+                <option value="curls">Curls</option>
+                <option value="push ups">Push Ups</option>
+                <option value="overhead press">Overhead Press</option>
+                <option value="pike push ups">Pike Push Ups</option>
+            </select>
+            <input type="number" id="weightInput" placeholder="Weight (lbs)" step="0.5">
+        </div>
+        
         <div id="quickButtons" class="input-group" style="display: none;">
             <!-- Buttons will be dynamically added here -->
         </div>
@@ -164,13 +284,14 @@
         <div class="stats">
             <span id="totalReps">0</span>
             <small>Total Reps</small>
+            <div id="currentExerciseInfo">Select exercise and weight</div>
             <div id="countdown">Next set in: 2:00</div>
         </div>
         <div id="chartContainer">
             <canvas id="repChart"></canvas>
         </div>
         <div id="log">
-            <h3>Set History</h3>
+            <h3>Current Session History</h3>
             <div id="logEntries"></div>
         </div>
         <div class="settings">
@@ -181,20 +302,57 @@
                 <button onclick="updateInterval()">Update</button>
             </div>
         </div>
+        <div class="analytics-section">
+            <h3>📊 Long-Term Analytics & Trends</h3>
+            <div class="chart-grid">
+                <div class="chart-item full-width-chart">
+                    <h4>Daily Volume Trend</h4>
+                    <canvas id="volumeTrendChart"></canvas>
+                </div>
+                <div class="chart-item">
+                    <h4>Exercise Progress</h4>
+                    <canvas id="exerciseProgressChart"></canvas>
+                </div>
+                <div class="chart-item">
+                    <h4>Average Reps per Set</h4>
+                    <canvas id="avgRepsChart"></canvas>
+                </div>
+                <div class="chart-item">
+                    <h4>Workout Frequency</h4>
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+                <div class="chart-item">
+                    <h4>Rest Time Trends</h4>
+                    <canvas id="restTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="button-group">
+            <button class="copy-button" onclick="copyWorkoutLogToClipboard()">Copy Workout Log to Clipboard</button>
+            <button class="clear-button" onclick="clearWorkoutLog()">Clear Workout Log</button>
+        </div>
     </div>
     <div id="flash"></div>
 
     <script>
+        // Enhanced workout tracking with exercise and weight logging
         let totalReps = 0;
         let lastReps = 0;
         let setCount = 0;
         let countdownInterval;
         let restInterval = 120; // Default to 120 seconds (2 minutes)
+        let currentWorkoutSession = [];
+        let lastSetTime = null;
+        let workoutStartTime = null;
+        
         const repInput = document.getElementById('repInput');
+        const weightInput = document.getElementById('weightInput');
+        const exerciseSelect = document.getElementById('exerciseSelect');
         const intervalInput = document.getElementById('intervalInput');
         const totalRepsDisplay = document.getElementById('totalReps');
+        const currentExerciseInfo = document.getElementById('currentExerciseInfo');
         const logDisplay = document.getElementById('logEntries');
-        const flash = document.getElementById('flash');
+                const flash = document.getElementById('flash');
         const countdownDisplay = document.getElementById('countdown');
 
         // Load saved interval from localStorage
@@ -208,7 +366,7 @@
         // Web Audio API context
         let audioContext;
 
-        // Chart.js setup
+        // Chart.js setup - Current Session Chart
         const ctx = document.getElementById('repChart').getContext('2d');
         const repChart = new Chart(ctx, {
             type: 'line',
@@ -241,6 +399,136 @@
             }
         });
 
+        // Analytics Charts Setup
+        let volumeTrendChart, exerciseProgressChart, avgRepsChart, frequencyChart, restTimeChart;
+
+        function initializeAnalyticsCharts() {
+            // Daily Volume Trend Chart
+            const volumeCtx = document.getElementById('volumeTrendChart').getContext('2d');
+            volumeTrendChart = new Chart(volumeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Reps per Day',
+                        data: [],
+                        borderColor: 'rgb(52, 152, 219)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Total Reps' }
+                        }
+                    }
+                }
+            });
+
+            // Exercise Progress Chart
+            const exerciseCtx = document.getElementById('exerciseProgressChart').getContext('2d');
+            exerciseProgressChart = new Chart(exerciseCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Max Reps' }
+                        }
+                    }
+                }
+            });
+
+            // Average Reps per Set Chart
+            const avgRepsCtx = document.getElementById('avgRepsChart').getContext('2d');
+            avgRepsChart = new Chart(avgRepsCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Average Reps',
+                        data: [],
+                        backgroundColor: 'rgba(155, 89, 182, 0.7)',
+                        borderColor: 'rgb(155, 89, 182)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Average Reps' }
+                        }
+                    }
+                }
+            });
+
+            // Workout Frequency Chart
+            const frequencyCtx = document.getElementById('frequencyChart').getContext('2d');
+            frequencyChart = new Chart(frequencyCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Workouts',
+                        data: [],
+                        backgroundColor: 'rgba(46, 204, 113, 0.7)',
+                        borderColor: 'rgb(46, 204, 113)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Sets' }
+                        }
+                    }
+                }
+            });
+
+            // Rest Time Trends Chart
+            const restTimeCtx = document.getElementById('restTimeChart').getContext('2d');
+            restTimeChart = new Chart(restTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Average Rest Time (seconds)',
+                        data: [],
+                        borderColor: 'rgb(231, 76, 60)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Rest Time (seconds)' }
+                        }
+                    }
+                }
+            });
+        }
+
         function initAudio() {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
@@ -267,27 +555,371 @@
             oscillator.stop(audioContext.currentTime + 0.5);
         }
 
+        function getCurrentExerciseInfo() {
+            const exercise = exerciseSelect.value;
+            const weight = weightInput.value;
+            return {
+                exercise: exercise,
+                weight: weight ? parseFloat(weight) : null
+            };
+        }
+
+        function updateCurrentExerciseDisplay() {
+            const info = getCurrentExerciseInfo();
+            const weightText = info.weight ? ` @ ${info.weight} lbs` : '';
+            currentExerciseInfo.textContent = `${info.exercise}${weightText}`;
+        }
+
         function addReps(reps = null) {
+            const exerciseInfo = getCurrentExerciseInfo();
+            
+            if (!exerciseInfo.exercise) {
+                alert('Please select an exercise first');
+                return;
+            }
+
             reps = reps !== null ? reps : (repInput.value ? parseInt(repInput.value) : lastReps);
             if (reps > 0) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                // Calculate rest time from previous set
+                let restTime = null;
+                if (lastSetTime) {
+                    restTime = Math.round((now.getTime() - lastSetTime.getTime()) / 1000);
+                }
+                
+                // Initialize workout session if this is the first set
+                if (workoutStartTime === null) {
+                    workoutStartTime = now;
+                }
+                
                 totalReps += reps;
                 lastReps = reps;
                 setCount++;
                 totalRepsDisplay.textContent = totalReps;
                 
-                // Get current time and format it
-                const now = new Date();
-                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Create detailed set record
+                const setRecord = {
+                    setNumber: setCount,
+                    exercise: exerciseInfo.exercise,
+                    weight: exerciseInfo.weight,
+                    reps: reps,
+                    timestamp: now.toISOString(),
+                    timeString: timeString,
+                    restTimeSeconds: restTime,
+                    restTimeFormatted: restTime ? formatTime(restTime) : 'N/A (first set)'
+                };
                 
-                // Update log with time
-                logDisplay.innerHTML = `<p>Set ${setCount}: ${reps} reps - ${timeString}</p>` + logDisplay.innerHTML;
+                // Add to current session
+                currentWorkoutSession.push(setRecord);
+                
+                // Save to localStorage
+                saveToWorkoutLog(setRecord);
+                
+                // Update display
+                const restTimeDisplay = restTime ? ` (Rest: ${formatTime(restTime)})` : ' (First set)';
+                logDisplay.innerHTML = `<p>Set ${setCount}: ${reps} reps - ${exerciseInfo.exercise}${exerciseInfo.weight ? ` @ ${exerciseInfo.weight} lbs` : ''} - ${timeString}${restTimeDisplay}</p>` + logDisplay.innerHTML;
                 
                 repInput.value = '';
+                lastSetTime = now;
                 startTimer();
                 updateChart(reps);
+                updateCurrentExerciseDisplay();
+                updateAnalyticsCharts(); // Update long-term analytics
                 
                 // Show and update quick buttons
                 updateQuickButtons();
+            }
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            if (minutes > 0) {
+                return `${minutes}m ${remainingSeconds}s`;
+            }
+            return `${remainingSeconds}s`;
+        }
+
+        function saveToWorkoutLog(setRecord) {
+            let workoutHistory = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            workoutHistory.push(setRecord);
+            localStorage.setItem('workoutHistory', JSON.stringify(workoutHistory));
+        }
+
+        function generateWorkoutLogText() {
+            const workoutHistory = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            
+            if (workoutHistory.length === 0) {
+                return 'No workout history found.';
+            }
+            
+            let logText = 'COMPLETE WORKOUT LOG\n';
+            logText += '======================\n\n';
+            
+            // Group by date
+            const groupedByDate = {};
+            workoutHistory.forEach(record => {
+                const date = new Date(record.timestamp).toLocaleDateString();
+                if (!groupedByDate[date]) {
+                    groupedByDate[date] = [];
+                }
+                groupedByDate[date].push(record);
+            });
+            
+            // Generate log for each date
+            Object.keys(groupedByDate).sort().reverse().forEach(date => {
+                logText += `DATE: ${date}\n`;
+                logText += '-'.repeat(50) + '\n';
+                
+                const dayRecords = groupedByDate[date];
+                
+                // Group by exercise within the day
+                const exerciseGroups = {};
+                dayRecords.forEach(record => {
+                    const exerciseKey = `${record.exercise}${record.weight ? ` @ ${record.weight} lbs` : ''}`;
+                    if (!exerciseGroups[exerciseKey]) {
+                        exerciseGroups[exerciseKey] = [];
+                    }
+                    exerciseGroups[exerciseKey].push(record);
+                });
+                
+                Object.keys(exerciseGroups).forEach(exerciseKey => {
+                    logText += `\n${exerciseKey}:\n`;
+                    const sets = exerciseGroups[exerciseKey];
+                    
+                    sets.forEach((record, index) => {
+                        const setNum = index + 1;
+                        logText += `  Set ${setNum}: ${record.reps} reps at ${record.timeString}`;
+                        if (record.restTimeFormatted && record.restTimeFormatted !== 'N/A (first set)') {
+                            logText += ` (Rest: ${record.restTimeFormatted})`;
+                        }
+                        logText += '\n';
+                    });
+                    
+                    // Calculate totals for this exercise
+                    const totalReps = sets.reduce((sum, record) => sum + record.reps, 0);
+                    const avgReps = (totalReps / sets.length).toFixed(1);
+                    logText += `  Total: ${totalReps} reps across ${sets.length} sets (avg: ${avgReps} reps/set)\n`;
+                });
+                
+                // Day summary
+                const dayTotalReps = dayRecords.reduce((sum, record) => sum + record.reps, 0);
+                const dayTotalSets = dayRecords.length;
+                const uniqueExercises = Object.keys(exerciseGroups).length;
+                
+                logText += `\nDAY SUMMARY: ${dayTotalReps} total reps, ${dayTotalSets} sets, ${uniqueExercises} exercise(s)\n`;
+                logText += '\n' + '='.repeat(50) + '\n\n';
+            });
+            
+            // Overall statistics
+            const totalWorkouts = Object.keys(groupedByDate).length;
+            const totalSets = workoutHistory.length;
+            const totalReps = workoutHistory.reduce((sum, record) => sum + record.reps, 0);
+            const uniqueExercises = [...new Set(workoutHistory.map(r => r.exercise))];
+            
+            logText += 'OVERALL STATISTICS:\n';
+            logText += '==================\n';
+            logText += `Total workout days: ${totalWorkouts}\n`;
+            logText += `Total sets completed: ${totalSets}\n`;
+            logText += `Total reps completed: ${totalReps}\n`;
+            logText += `Average reps per set: ${(totalReps / totalSets).toFixed(1)}\n`;
+            logText += `Exercises performed: ${uniqueExercises.join(', ')}\n`;
+            logText += `Average sets per workout: ${(totalSets / totalWorkouts).toFixed(1)}\n`;
+            
+            return logText;
+        }
+
+        async function copyWorkoutLogToClipboard() {
+            try {
+                const logText = generateWorkoutLogText();
+                
+                // Try using the modern Clipboard API first
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(logText);
+                    alert('Workout log copied to clipboard!');
+                } else {
+                    // Fallback for older browsers or non-secure contexts
+                    const textArea = document.createElement('textarea');
+                    textArea.value = logText;
+                    textArea.style.position = 'absolute';
+                    textArea.style.left = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    textArea.setSelectionRange(0, 99999); // For mobile devices
+                    
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    if (successful) {
+                        alert('Workout log copied to clipboard!');
+                    } else {
+                        throw new Error('Copy command failed');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to copy workout log: ', err);
+                alert('Failed to copy to clipboard. Your browser may not support this feature. Please try using a modern browser with HTTPS.');
+            }
+        }
+
+        function updateAnalyticsCharts() {
+            const workoutHistory = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            
+            if (workoutHistory.length === 0) {
+                return; // No data to display
+            }
+
+            updateVolumeTrendChart(workoutHistory);
+            updateExerciseProgressChart(workoutHistory);
+            updateAvgRepsChart(workoutHistory);
+            updateFrequencyChart(workoutHistory);
+            updateRestTimeChart(workoutHistory);
+        }
+
+        function updateVolumeTrendChart(workoutHistory) {
+            // Group by date and sum reps
+            const dailyVolume = {};
+            workoutHistory.forEach(record => {
+                const date = new Date(record.timestamp).toLocaleDateString();
+                dailyVolume[date] = (dailyVolume[date] || 0) + record.reps;
+            });
+
+            const sortedDates = Object.keys(dailyVolume).sort((a, b) => new Date(a) - new Date(b));
+            const volumes = sortedDates.map(date => dailyVolume[date]);
+
+            volumeTrendChart.data.labels = sortedDates;
+            volumeTrendChart.data.datasets[0].data = volumes;
+            volumeTrendChart.update();
+        }
+
+        function updateExerciseProgressChart(workoutHistory) {
+            // Track max reps per exercise over time
+            const exerciseData = {};
+            const colors = ['rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 205, 86)', 'rgb(75, 192, 192)'];
+            
+            workoutHistory.forEach(record => {
+                const date = new Date(record.timestamp).toLocaleDateString();
+                if (!exerciseData[record.exercise]) {
+                    exerciseData[record.exercise] = {};
+                }
+                exerciseData[record.exercise][date] = Math.max(
+                    exerciseData[record.exercise][date] || 0, 
+                    record.reps
+                );
+            });
+
+            const allDates = [...new Set(workoutHistory.map(r => new Date(r.timestamp).toLocaleDateString()))]
+                .sort((a, b) => new Date(a) - new Date(b));
+
+            exerciseProgressChart.data.labels = allDates;
+            exerciseProgressChart.data.datasets = Object.keys(exerciseData).map((exercise, index) => ({
+                label: exercise,
+                data: allDates.map(date => exerciseData[exercise][date] || 0),
+                borderColor: colors[index % colors.length],
+                tension: 0.3,
+                fill: false
+            }));
+            exerciseProgressChart.update();
+        }
+
+        function updateAvgRepsChart(workoutHistory) {
+            // Calculate average reps per exercise
+            const exerciseStats = {};
+            
+            workoutHistory.forEach(record => {
+                if (!exerciseStats[record.exercise]) {
+                    exerciseStats[record.exercise] = { totalReps: 0, totalSets: 0 };
+                }
+                exerciseStats[record.exercise].totalReps += record.reps;
+                exerciseStats[record.exercise].totalSets += 1;
+            });
+
+            const exercises = Object.keys(exerciseStats);
+            const avgReps = exercises.map(ex => 
+                (exerciseStats[ex].totalReps / exerciseStats[ex].totalSets).toFixed(1)
+            );
+
+            avgRepsChart.data.labels = exercises;
+            avgRepsChart.data.datasets[0].data = avgReps;
+            avgRepsChart.update();
+        }
+
+        function updateFrequencyChart(workoutHistory) {
+            // Show sets per exercise
+            const exerciseCounts = {};
+            
+            workoutHistory.forEach(record => {
+                exerciseCounts[record.exercise] = (exerciseCounts[record.exercise] || 0) + 1;
+            });
+
+            const exercises = Object.keys(exerciseCounts);
+            const counts = exercises.map(ex => exerciseCounts[ex]);
+
+            frequencyChart.data.labels = exercises;
+            frequencyChart.data.datasets[0].data = counts;
+            frequencyChart.update();
+        }
+
+        function updateRestTimeChart(workoutHistory) {
+            // Calculate average rest time per day (excluding first sets)
+            const dailyRestTimes = {};
+            
+            workoutHistory.forEach(record => {
+                if (record.restTimeSeconds !== null) {
+                    const date = new Date(record.timestamp).toLocaleDateString();
+                    if (!dailyRestTimes[date]) {
+                        dailyRestTimes[date] = [];
+                    }
+                    dailyRestTimes[date].push(record.restTimeSeconds);
+                }
+            });
+
+            const sortedDates = Object.keys(dailyRestTimes).sort((a, b) => new Date(a) - new Date(b));
+            const avgRestTimes = sortedDates.map(date => {
+                const times = dailyRestTimes[date];
+                return times.reduce((sum, time) => sum + time, 0) / times.length;
+            });
+
+            restTimeChart.data.labels = sortedDates;
+            restTimeChart.data.datasets[0].data = avgRestTimes;
+            restTimeChart.update();
+        }
+
+        function clearWorkoutLog() {
+            const workoutHistory = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            
+            if (workoutHistory.length === 0) {
+                alert('No workout history to clear.');
+                return;
+            }
+            
+            const totalSets = workoutHistory.length;
+            const totalReps = workoutHistory.reduce((sum, record) => sum + record.reps, 0);
+            const totalWorkouts = [...new Set(workoutHistory.map(record => 
+                new Date(record.timestamp).toLocaleDateString()
+            ))].length;
+            
+            const confirmMessage = `Are you sure you want to clear ALL workout history?\n\n` +
+                                 `This will permanently delete:\n` +
+                                 `• ${totalWorkouts} workout day(s)\n` +
+                                 `• ${totalSets} total sets\n` +
+                                 `• ${totalReps} total reps\n\n` +
+                                 `This action cannot be undone!`;
+            
+            if (confirm(confirmMessage)) {
+                // Double confirmation for safety
+                if (confirm('Are you absolutely sure? This will delete ALL your workout data forever!')) {
+                    localStorage.removeItem('workoutHistory');
+                    alert('Workout log cleared successfully.');
+                    // Clear analytics charts
+                    updateAnalyticsCharts();
+                } else {
+                    alert('Workout log clear cancelled.');
+                }
+            } else {
+                alert('Workout log clear cancelled.');
             }
         }
 
@@ -349,14 +981,23 @@
             }
         }
 
+        // Event listeners
         repInput.addEventListener('keyup', function(event) {
             if (event.key === 'Enter') {
                 addReps();
             }
         });
 
+        exerciseSelect.addEventListener('change', updateCurrentExerciseDisplay);
+        weightInput.addEventListener('input', updateCurrentExerciseDisplay);
+
         // Initialize audio context on user interaction
         document.body.addEventListener('click', initAudio, { once: true });
+
+        // Initialize analytics charts and display
+        initializeAnalyticsCharts();
+        updateAnalyticsCharts(); // Load any existing data
+        updateCurrentExerciseDisplay();
     </script>
 </body>
 </html>
