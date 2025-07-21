@@ -29,20 +29,45 @@
             display: flex;
             margin-bottom: 20px;
         }
-        .exercise-weight-group {
-            display: flex;
-            gap: 10px;
+        .exercise-selection {
             margin-bottom: 20px;
         }
-        .exercise-weight-group > * {
-            flex: 1;
+        .exercise-selection h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 18px;
         }
-        #exerciseSelect {
-            padding: 10px;
+        .exercise-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .exercise-btn {
+            padding: 15px 10px;
             font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: white;
+            font-weight: 500;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .exercise-btn:hover {
+            background-color: #d5dbdb;
+            border-color: #95a5a6;
+        }
+        .exercise-btn.selected {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+        .exercise-btn.selected:hover {
+            background-color: #2980b9;
+        }
+        .weight-input-group {
+            margin-bottom: 20px;
         }
         #weightInput {
             padding: 10px;
@@ -127,6 +152,13 @@
             margin-top: 10px;
             font-size: 18px;
         }
+        #exerciseStats {
+            text-align: center;
+            color: #27ae60;
+            margin-top: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
         #countdown {
             font-size: 24px;
             font-weight: bold;
@@ -205,6 +237,13 @@
             .chart-grid {
                 grid-template-columns: 1fr;
             }
+            .exercise-buttons {
+                grid-template-columns: 1fr;
+            }
+            .exercise-btn {
+                padding: 18px 15px;
+                font-size: 18px;
+            }
         }
         .settings {
             background-color: white;
@@ -264,13 +303,17 @@
     <div class="container">
         <h1>Workout Rep Counter</h1>
         
-        <div class="exercise-weight-group">
-            <select id="exerciseSelect">
-                <option value="curls">Curls</option>
-                <option value="push ups">Push Ups</option>
-                <option value="overhead press">Overhead Press</option>
-                <option value="pike push ups">Pike Push Ups</option>
-            </select>
+        <div class="exercise-selection">
+            <h3>Select Exercise:</h3>
+            <div class="exercise-buttons">
+                <button class="exercise-btn" data-exercise="curls">Curls</button>
+                <button class="exercise-btn" data-exercise="push ups">Push Ups</button>
+                <button class="exercise-btn" data-exercise="overhead press">Overhead Press</button>
+                <button class="exercise-btn" data-exercise="pike push ups">Pike Push Ups</button>
+            </div>
+        </div>
+        
+        <div class="weight-input-group">
             <input type="number" id="weightInput" placeholder="Weight (lbs)" step="0.5">
         </div>
         
@@ -285,6 +328,7 @@
             <span id="totalReps">0</span>
             <small>Total Reps</small>
             <div id="currentExerciseInfo">Select exercise and weight</div>
+            <div id="exerciseStats">No data for this exercise yet</div>
             <div id="countdown">Next set in: 2:00</div>
         </div>
         <div id="chartContainer">
@@ -344,13 +388,14 @@
         let currentWorkoutSession = [];
         let lastSetTime = null;
         let workoutStartTime = null;
+        let currentExercise = 'curls'; // Default exercise selection
         
         const repInput = document.getElementById('repInput');
         const weightInput = document.getElementById('weightInput');
-        const exerciseSelect = document.getElementById('exerciseSelect');
         const intervalInput = document.getElementById('intervalInput');
         const totalRepsDisplay = document.getElementById('totalReps');
         const currentExerciseInfo = document.getElementById('currentExerciseInfo');
+        const exerciseStatsDisplay = document.getElementById('exerciseStats');
         const logDisplay = document.getElementById('logEntries');
                 const flash = document.getElementById('flash');
         const countdownDisplay = document.getElementById('countdown');
@@ -556,10 +601,9 @@
         }
 
         function getCurrentExerciseInfo() {
-            const exercise = exerciseSelect.value;
             const weight = weightInput.value;
             return {
-                exercise: exercise,
+                exercise: currentExercise,
                 weight: weight ? parseFloat(weight) : null
             };
         }
@@ -568,6 +612,72 @@
             const info = getCurrentExerciseInfo();
             const weightText = info.weight ? ` @ ${info.weight} lbs` : '';
             currentExerciseInfo.textContent = `${info.exercise}${weightText}`;
+            updateExerciseStats();
+        }
+
+        function getCurrentExerciseStats() {
+            const workoutHistory = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            const currentExerciseData = workoutHistory.filter(record => 
+                record.exercise === currentExercise
+            );
+            
+            if (currentExerciseData.length === 0) {
+                return null;
+            }
+            
+            const totalReps = currentExerciseData.reduce((sum, record) => sum + record.reps, 0);
+            const totalSets = currentExerciseData.length;
+            const averageReps = (totalReps / totalSets).toFixed(1);
+            const maxReps = Math.max(...currentExerciseData.map(record => record.reps));
+            const minReps = Math.min(...currentExerciseData.map(record => record.reps));
+            
+            // Get recent sets (last 10 sets for this exercise)
+            const recentSets = currentExerciseData.slice(-10);
+            const recentAverage = recentSets.length > 0 ? 
+                (recentSets.reduce((sum, record) => sum + record.reps, 0) / recentSets.length).toFixed(1) : '0';
+            
+            return {
+                totalSets,
+                totalReps,
+                averageReps,
+                maxReps,
+                minReps,
+                recentAverage,
+                recentSetsCount: recentSets.length
+            };
+        }
+
+        function updateExerciseStats() {
+            const stats = getCurrentExerciseStats();
+            
+            if (!stats) {
+                exerciseStatsDisplay.textContent = 'No data for this exercise yet';
+                exerciseStatsDisplay.style.color = '#7f8c8d';
+                return;
+            }
+            
+            let statsText = `Avg: ${stats.averageReps} reps/set`;
+            
+            if (stats.recentSetsCount >= 3 && stats.recentSetsCount < stats.totalSets) {
+                statsText += ` | Recent avg: ${stats.recentAverage}`;
+            }
+            
+            statsText += ` | Range: ${stats.minReps}-${stats.maxReps} | Total: ${stats.totalSets} sets`;
+            
+            exerciseStatsDisplay.textContent = statsText;
+            exerciseStatsDisplay.style.color = '#27ae60';
+        }
+
+        function selectExercise(exercise) {
+            currentExercise = exercise;
+            
+            // Update button visual states
+            document.querySelectorAll('.exercise-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelector(`[data-exercise="${exercise}"]`).classList.add('selected');
+            
+            updateCurrentExerciseDisplay();
         }
 
         function addReps(reps = null) {
@@ -988,7 +1098,13 @@
             }
         });
 
-        exerciseSelect.addEventListener('change', updateCurrentExerciseDisplay);
+        // Add exercise button listeners
+        document.querySelectorAll('.exercise-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                selectExercise(this.dataset.exercise);
+            });
+        });
+
         weightInput.addEventListener('input', updateCurrentExerciseDisplay);
 
         // Initialize audio context on user interaction
@@ -997,6 +1113,9 @@
         // Initialize analytics charts and display
         initializeAnalyticsCharts();
         updateAnalyticsCharts(); // Load any existing data
+        
+        // Initialize default exercise selection
+        selectExercise(currentExercise);
         updateCurrentExerciseDisplay();
     </script>
 </body>
