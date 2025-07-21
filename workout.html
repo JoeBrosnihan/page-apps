@@ -297,6 +297,68 @@
         #quickButtons button:hover {
                         background-color: #2980b9;
         }
+        
+        /* Muscle Soreness Tracker Styles */
+        #sorenessLog {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        #sorenessLog h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .soreness-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .muscle-item {
+            display: flex;
+            align-items: center;
+        }
+        .soreness-toggle {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid #bdc3c7;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .soreness-toggle:hover {
+            border-color: #3498db;
+            background-color: #d5dbdb;
+        }
+        .soreness-toggle.sore {
+            background-color: #e74c3c;
+            color: white;
+            border-color: #c0392b;
+        }
+        .soreness-toggle.sore:hover {
+            background-color: #c0392b;
+        }
+        .muscle-name {
+            display: block;
+        }
+        @media (max-width: 768px) {
+            .soreness-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .soreness-toggle {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -337,6 +399,31 @@
         <div id="log">
             <h3>Current Session History</h3>
             <div id="logEntries"></div>
+        </div>
+        <div id="sorenessLog">
+            <h3>💪 Muscle Soreness</h3>
+            <div class="soreness-grid">
+                <div class="muscle-item">
+                    <button class="soreness-toggle" data-muscle="shoulders">
+                        <span class="muscle-name">Shoulders</span>
+                    </button>
+                </div>
+                <div class="muscle-item">
+                    <button class="soreness-toggle" data-muscle="chest">
+                        <span class="muscle-name">Chest</span>
+                    </button>
+                </div>
+                <div class="muscle-item">
+                    <button class="soreness-toggle" data-muscle="triceps">
+                        <span class="muscle-name">Triceps</span>
+                    </button>
+                </div>
+                <div class="muscle-item">
+                    <button class="soreness-toggle" data-muscle="biceps">
+                        <span class="muscle-name">Biceps</span>
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="settings">
             <h3>Settings</h3>
@@ -843,7 +930,7 @@
 
         async function copyWorkoutLogToClipboard() {
             try {
-                const logText = generateWorkoutLogText();
+                const logText = generateWorkoutLogTextWithSoreness();
                 
                 // Try using the modern Clipboard API first
                 if (navigator.clipboard && window.isSecureContext) {
@@ -1110,6 +1197,135 @@
         // Initialize audio context on user interaction
         document.body.addEventListener('click', initAudio, { once: true });
 
+        // Muscle Soreness Tracking
+        let sorenessStatus = {};
+        
+        function initializeSorenessTracker() {
+            // Add event listeners to all soreness toggle buttons
+            document.querySelectorAll('.soreness-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    const muscle = this.dataset.muscle;
+                    toggleMuscleSoreness(muscle);
+                });
+            });
+            
+            // Load today's soreness data
+            loadTodaysSorenessData();
+        }
+        
+        function toggleMuscleSoreness(muscle) {
+            const button = document.querySelector(`[data-muscle="${muscle}"]`);
+            const isSore = button.classList.contains('sore');
+            
+            if (isSore) {
+                // Remove soreness
+                button.classList.remove('sore');
+                delete sorenessStatus[muscle];
+                removeSorenessEntry(muscle);
+            } else {
+                // Add soreness
+                button.classList.add('sore');
+                const now = new Date();
+                const sorenessEntry = {
+                    muscle: muscle,
+                    sore: true,
+                    timestamp: now.toISOString(),
+                    date: now.toLocaleDateString()
+                };
+                sorenessStatus[muscle] = sorenessEntry;
+                saveSorenessEntry(sorenessEntry);
+            }
+        }
+        
+        function saveSorenessEntry(entry) {
+            let sorenessHistory = JSON.parse(localStorage.getItem('sorenessHistory') || '[]');
+            
+            // Remove any previous entry for this muscle today
+            const today = new Date().toLocaleDateString();
+            sorenessHistory = sorenessHistory.filter(item => 
+                !(item.muscle === entry.muscle && item.date === today)
+            );
+            
+            sorenessHistory.push(entry);
+            localStorage.setItem('sorenessHistory', JSON.stringify(sorenessHistory));
+        }
+        
+        function removeSorenessEntry(muscle) {
+            let sorenessHistory = JSON.parse(localStorage.getItem('sorenessHistory') || '[]');
+            const today = new Date().toLocaleDateString();
+            
+            // Remove entry for this muscle today
+            sorenessHistory = sorenessHistory.filter(item => 
+                !(item.muscle === muscle && item.date === today)
+            );
+            
+            localStorage.setItem('sorenessHistory', JSON.stringify(sorenessHistory));
+        }
+        
+        function loadTodaysSorenessData() {
+            const sorenessHistory = JSON.parse(localStorage.getItem('sorenessHistory') || '[]');
+            const today = new Date().toLocaleDateString();
+            
+            // Clear current status
+            sorenessStatus = {};
+            
+            // Reset all buttons
+            document.querySelectorAll('.soreness-toggle').forEach(button => {
+                button.classList.remove('sore');
+            });
+            
+            // Filter entries for today and restore state
+            const todaysEntries = sorenessHistory.filter(entry => entry.date === today && entry.sore);
+            
+            todaysEntries.forEach(entry => {
+                const button = document.querySelector(`[data-muscle="${entry.muscle}"]`);
+                if (button) {
+                    button.classList.add('sore');
+                    sorenessStatus[entry.muscle] = entry;
+                }
+            });
+        }
+        
+        // Update the generateWorkoutLogText function to include soreness data
+        function generateWorkoutLogTextWithSoreness() {
+            let logText = generateWorkoutLogText();
+            
+            // Add soreness data
+            const sorenessHistory = JSON.parse(localStorage.getItem('sorenessHistory') || '[]');
+            
+            if (sorenessHistory.length > 0) {
+                logText += '\n\n' + '='.repeat(50) + '\n';
+                logText += 'MUSCLE SORENESS HISTORY\n';
+                logText += '='.repeat(50) + '\n\n';
+                
+                // Group by date
+                const groupedByDate = {};
+                sorenessHistory.forEach(entry => {
+                    if (entry.sore) { // Only include sore muscles
+                        if (!groupedByDate[entry.date]) {
+                            groupedByDate[entry.date] = [];
+                        }
+                        groupedByDate[entry.date].push(entry);
+                    }
+                });
+                
+                // Generate log for each date
+                Object.keys(groupedByDate).sort().reverse().forEach(date => {
+                    logText += `DATE: ${date}\n`;
+                    logText += '-'.repeat(30) + '\n';
+                    
+                    const dayEntries = groupedByDate[date];
+                    const soreList = dayEntries.map(entry => 
+                        entry.muscle.charAt(0).toUpperCase() + entry.muscle.slice(1)
+                    ).join(', ');
+                    
+                    logText += `Sore muscles: ${soreList}\n\n`;
+                });
+            }
+            
+            return logText;
+        }
+
         // Initialize analytics charts and display
         initializeAnalyticsCharts();
         updateAnalyticsCharts(); // Load any existing data
@@ -1117,6 +1333,7 @@
         // Initialize default exercise selection
         selectExercise(currentExercise);
         updateCurrentExerciseDisplay();
+        initializeSorenessTracker();
     </script>
 </body>
 </html>

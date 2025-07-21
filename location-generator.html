@@ -30,6 +30,83 @@
             overflow: hidden;
         }
 
+        /* Onboarding state styles */
+        .onboarding-state {
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .onboarding-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .onboarding-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+        }
+
+        .onboarding-description {
+            color: #6c757d;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .origin-setup-card {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .origin-setup-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .continue-btn {
+            background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .continue-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(67, 206, 162, 0.4);
+        }
+
+        .continue-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Hide main content when in onboarding state */
+        .container.onboarding .main-content {
+            display: none;
+        }
+
+        .container.onboarding .history-section {
+            display: none;
+        }
+
         .header {
             background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
             color: white;
@@ -387,10 +464,35 @@
     <!-- Toast notification for copy feedback -->
     <div id="toast" class="toast">Coordinates copied to clipboard!</div>
 
-    <div class="container">
+    <div class="container" id="appContainer">
         <div class="header">
             <h1>🎯 Random Location Generator</h1>
             <p>Generate random coordinates 1-3 miles away</p>
+        </div>
+
+        <!-- Onboarding state for first-time users -->
+        <div id="onboardingState" class="onboarding-state" style="display: none;">
+            <div class="onboarding-icon">📍</div>
+            <div class="onboarding-title">Welcome to Location Generator!</div>
+            <div class="onboarding-description">
+                To get started, you'll need to set your origin point. This is the location from which random coordinates will be generated.
+            </div>
+            
+            <div class="origin-setup-card">
+                <div class="origin-setup-title">
+                    <span>🏠</span>
+                    <span>Set Your Origin Point</span>
+                </div>
+                <div id="onboardingOriginCoords" class="origin-display" onclick="editOnboardingOrigin()">
+                    Click to set origin coordinates
+                </div>
+                <input type="text" id="onboardingOriginInput" class="origin-input" placeholder="Paste coordinates (e.g., 37.54186° N, 122.29651° W)" onblur="saveOnboardingOrigin()" onkeypress="handleOnboardingOriginKeypress(event)" style="display: none;">
+                <div class="setting-hint">You can copy coordinates from Google Maps, Apple Maps, or any GPS app</div>
+                
+                <button id="continueBtn" class="continue-btn" onclick="completeOnboarding()" disabled>
+                    Continue to Generator
+                </button>
+            </div>
         </div>
 
         <div class="main-content">
@@ -468,10 +570,95 @@
             loadOrigin();
             loadDistanceRange();
             loadHistory();
-            if (getOrigin()) {
+            
+            // Check if we need to show onboarding
+            if (!getOrigin()) {
+                showOnboarding();
+            } else {
+                showMainApp();
                 generateNewLocation();
             }
         });
+
+        /**
+         * Show onboarding state for first-time users
+         */
+        function showOnboarding() {
+            document.getElementById('appContainer').classList.add('onboarding');
+            document.getElementById('onboardingState').style.display = 'block';
+        }
+
+        /**
+         * Show main app state (hide onboarding)
+         */
+        function showMainApp() {
+            document.getElementById('appContainer').classList.remove('onboarding');
+            document.getElementById('onboardingState').style.display = 'none';
+        }
+
+        /**
+         * Handle origin editing in onboarding state
+         */
+        function editOnboardingOrigin() {
+            const display = document.getElementById('onboardingOriginCoords');
+            const input = document.getElementById('onboardingOriginInput');
+            
+            display.style.display = 'none';
+            input.style.display = 'block';
+            input.focus();
+            input.select();
+        }
+
+        /**
+         * Save origin from onboarding input
+         */
+        function saveOnboardingOrigin() {
+            const input = document.getElementById('onboardingOriginInput');
+            const display = document.getElementById('onboardingOriginCoords');
+            const continueBtn = document.getElementById('continueBtn');
+            const value = input.value.trim();
+            
+            if (value) {
+                const coords = parseCoordinates(value);
+                if (coords) {
+                    localStorage.setItem('originCoordinates', JSON.stringify(coords));
+                    display.textContent = formatCoordinates(coords.lat, coords.lng);
+                    showToast('Origin coordinates saved');
+                    continueBtn.disabled = false;
+                } else {
+                    showToast('Invalid coordinate format. Use: 37.54186° N, 122.29651° W');
+                    input.focus();
+                    return;
+                }
+            } else {
+                display.textContent = 'Click to set origin coordinates';
+                continueBtn.disabled = true;
+            }
+            
+            input.style.display = 'none';
+            display.style.display = 'block';
+        }
+
+        /**
+         * Handle keypress in onboarding origin input
+         */
+        function handleOnboardingOriginKeypress(event) {
+            if (event.key === 'Enter') {
+                saveOnboardingOrigin();
+            }
+        }
+
+        /**
+         * Complete onboarding and show main app
+         */
+        function completeOnboarding() {
+            if (getOrigin()) {
+                showMainApp();
+                loadOrigin(); // Update the main settings display
+                generateNewLocation(); // Generate first location
+                showToast('Welcome! Your first random location has been generated.');
+            }
+        }
 
         /**
          * Generate a random location within the specified distance range
