@@ -567,7 +567,7 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadOrigin();
+            loadOriginFromURL(); // Load origin from URL first, then fallback to localStorage
             loadDistanceRange();
             loadHistory();
             
@@ -622,6 +622,7 @@
                 const coords = parseCoordinates(value);
                 if (coords) {
                     localStorage.setItem('originCoordinates', JSON.stringify(coords));
+                    updateURLWithOrigin(coords); // Update URL parameters
                     display.textContent = formatCoordinates(coords.lat, coords.lng);
                     showToast('Origin coordinates saved');
                     continueBtn.disabled = false;
@@ -632,6 +633,7 @@
                 }
             } else {
                 display.textContent = 'Click to set origin coordinates';
+                updateURLWithOrigin(null); // Remove URL parameters
                 continueBtn.disabled = true;
             }
             
@@ -817,6 +819,52 @@
         }
 
         /**
+         * Load origin from URL parameters first, then fallback to localStorage
+         */
+        function loadOriginFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const originLat = urlParams.get('lat');
+            const originLng = urlParams.get('lng');
+            
+            if (originLat && originLng) {
+                const lat = parseFloat(originLat);
+                const lng = parseFloat(originLng);
+                
+                // Validate coordinates
+                if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    const coords = { lat, lng };
+                    // Store in localStorage for consistency
+                    localStorage.setItem('originCoordinates', JSON.stringify(coords));
+                    loadOrigin(); // Update display
+                    return;
+                }
+            }
+            
+            // Fallback to normal loading if no valid URL params
+            loadOrigin();
+        }
+
+        /**
+         * Update URL parameters with current origin coordinates
+         */
+        function updateURLWithOrigin(coords) {
+            if (coords) {
+                const url = new URL(window.location);
+                url.searchParams.set('lat', coords.lat.toString());
+                url.searchParams.set('lng', coords.lng.toString());
+                
+                // Update URL without reloading the page
+                window.history.replaceState({}, '', url.toString());
+            } else {
+                // Remove origin parameters if no coordinates
+                const url = new URL(window.location);
+                url.searchParams.delete('lat');
+                url.searchParams.delete('lng');
+                window.history.replaceState({}, '', url.toString());
+            }
+        }
+
+        /**
          * Load and display the origin coordinates
          */
         function loadOrigin() {
@@ -861,6 +909,7 @@
                 const coords = parseCoordinates(value);
                 if (coords) {
                     localStorage.setItem('originCoordinates', JSON.stringify(coords));
+                    updateURLWithOrigin(coords); // Update URL parameters
                     display.textContent = formatCoordinates(coords.lat, coords.lng);
                     showToast('Origin coordinates saved');
                     
@@ -874,6 +923,7 @@
                  }
             } else {
                 display.textContent = 'Click to set origin coordinates';
+                updateURLWithOrigin(null); // Remove URL parameters
             }
             
             input.style.display = 'none';
