@@ -12,6 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bar Chart</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -184,6 +185,31 @@
             cursor: pointer;
         }
 
+        .item-card.dragging {
+            opacity: 0.4;
+        }
+
+        .drag-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            min-height: 32px;
+            padding: 6px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: #1f1f1f;
+            color: #bbb;
+            font-size: 18px;
+            cursor: grab;
+            flex-shrink: 0;
+            touch-action: none;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
         .color-indicator {
             width: 18px;
             height: 18px;
@@ -262,9 +288,9 @@
         }
 
         .remove-btn {
-            width: 24px;
-            height: 24px;
-            padding: 0;
+            width: 32px;
+            height: 32px;
+            padding: 6px;
             background: #e74c3c;
             color: white;
             border: none;
@@ -368,6 +394,9 @@
         };
 
         let barChart;
+        let sortableInstance = null;
+        let activeEditIndex = null;
+        let outsideEditHandler = null;
 
         // Initialize the chart
         function initChart() {
@@ -493,6 +522,7 @@
 
         // Remove an item from the chart
         function removeItem(index) {
+            cancelEditingState();
             chartData.items.splice(index, 1);
             saveData();
             updateChart();
@@ -500,23 +530,33 @@
         }
 
         // Update item name
-        function updateItemName(index, newName) {
+        function updateItemName(index, newName, shouldRender = true) {
+            const target = chartData.items[index];
+            if (!target) return;
             const name = newName.trim();
-            if (name) {
-                chartData.items[index].name = name;
-                saveData();
-                updateChart();
+            if (!name) return;
+            if (target.name === name) return;
+
+            target.name = name;
+            saveData();
+            updateChart();
+            if (shouldRender) {
                 renderItemsList();
             }
         }
 
         // Update item value
-        function updateItemValue(index, newValue) {
+        function updateItemValue(index, newValue, shouldRender = true) {
+            const target = chartData.items[index];
+            if (!target) return;
             const value = parseFloat(newValue);
-            if (!isNaN(value)) {
-                chartData.items[index].value = value;
-                saveData();
-                updateChart();
+            if (isNaN(value)) return;
+            if (target.value === value) return;
+
+            target.value = value;
+            saveData();
+            updateChart();
+            if (shouldRender) {
                 renderItemsList();
             }
         }
@@ -634,6 +674,12 @@
         // Render the items list
         function renderItemsList() {
             const itemsList = document.getElementById('itemsList');
+            cancelEditingState();
+
+            if (sortableInstance) {
+                sortableInstance.destroy();
+                sortableInstance = null;
+            }
             
             if (chartData.items.length === 0) {
                 itemsList.innerHTML = '<div class="empty-state">Click "Add Item" to get started</div>';
@@ -642,6 +688,7 @@
 
             itemsList.innerHTML = chartData.items.map((item, index) => `
                 <div class="item-card" data-index="${index}" onclick="enterEditMode(${index})">
+                    <button class="drag-handle" type="button" onclick="event.stopPropagation()" title="Reorder item" aria-label="Reorder item">⋮⋮</button>
                     <div class="color-indicator" style="background-color: ${item.color}"></div>
                     <div class="item-info">
                         <span class="item-name">${item.name}</span>
@@ -650,7 +697,8 @@
                             type="text" 
                             class="item-name-input" 
                             value="${item.name}" 
-                            onblur="exitEditMode(${index}, this.value, null)"
+                            oninput="handleNameInput(${index}, this.value)"
+                            onkeydown="handleInputKey(event, ${index})"
                             onclick="event.stopPropagation()"
                         />
                         <input 
@@ -658,39 +706,140 @@
                             class="item-value-input" 
                             value="${item.value}" 
                             step="0.1"
-                            onblur="exitEditMode(${index}, null, this.value)"
+                            oninput="handleValueInput(${index}, this.value)"
+                            onkeydown="handleInputKey(event, ${index})"
                             onclick="event.stopPropagation()"
                         />
                     </div>
                     <button class="remove-btn" onclick="event.stopPropagation(); removeItem(${index})" title="Remove">×</button>
                 </div>
             `).join('');
+
+            initSortable();
         }
 
-        // Enter edit mode for an item
+        function handleNameInput(index, value) {
+            updateItemName(index, value, false);
+        }
+
+        function handleValueInput(index, value) {
+            if (value === '') return;
+            updateItemValue(index, value, false);
+        }
+
+        function handleInputKey(event, index) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                exitEditMode(index);
+            }
+        }
+
         function enterEditMode(index) {
             const card = document.querySelector(`[data-index="${index}"]`);
-            if (card.classList.contains('editing')) return;
+            if (!card) return;
+
+            if (activeEditIndex !== null && activeEditIndex !== index) {
+                exitEditMode(activeEditIndex);
+            }
+
+            if (card.classList.contains('editing')) {
+                const existingInput = card.querySelector('.item-name-input');
+                existingInput?.focus();
+                existingInput?.select();
+                return;
+            }
             
+            activeEditIndex = index;
             card.classList.add('editing');
+
             const nameInput = card.querySelector('.item-name-input');
             if (nameInput) {
-                nameInput.focus();
-                nameInput.select();
+                setTimeout(() => {
+                    nameInput.focus();
+                    nameInput.select();
+                }, 0);
+            }
+
+            attachOutsideEditHandler();
+        }
+
+        function exitEditMode(index) {
+            const card = document.querySelector(`[data-index="${index}"]`);
+            if (card) {
+                card.classList.remove('editing');
+                const item = chartData.items[index];
+                if (item) {
+                    const nameLabel = card.querySelector('.item-name');
+                    const valueLabel = card.querySelector('.item-value');
+                    if (nameLabel) {
+                        nameLabel.textContent = item.name;
+                    }
+                    if (valueLabel) {
+                        valueLabel.textContent = item.value;
+                    }
+                }
+            }
+
+            if (activeEditIndex === index) {
+                activeEditIndex = null;
+                detachOutsideEditHandler();
             }
         }
 
-        // Exit edit mode and save changes
-        function exitEditMode(index, newName, newValue) {
-            const card = document.querySelector(`[data-index="${index}"]`);
-            card.classList.remove('editing');
-            
-            if (newName !== null && newName.trim()) {
-                updateItemName(index, newName);
+        function cancelEditingState() {
+            if (activeEditIndex === null) return;
+            const activeCard = document.querySelector(`[data-index="${activeEditIndex}"]`);
+            if (activeCard) {
+                activeCard.classList.remove('editing');
             }
-            if (newValue !== null && !isNaN(parseFloat(newValue))) {
-                updateItemValue(index, newValue);
-            }
+            activeEditIndex = null;
+            detachOutsideEditHandler();
+        }
+
+        function attachOutsideEditHandler() {
+            if (outsideEditHandler) return;
+            outsideEditHandler = (event) => {
+                if (activeEditIndex === null) return;
+                const activeCard = document.querySelector(`[data-index="${activeEditIndex}"]`);
+                if (!activeCard || activeCard.contains(event.target)) {
+                    return;
+                }
+                exitEditMode(activeEditIndex);
+            };
+            document.addEventListener('pointerdown', outsideEditHandler, true);
+        }
+
+        function detachOutsideEditHandler() {
+            if (!outsideEditHandler) return;
+            document.removeEventListener('pointerdown', outsideEditHandler, true);
+            outsideEditHandler = null;
+        }
+
+        // SortableJS keeps bar order in sync with user-controlled card order (touch-friendly reordering).
+        function initSortable() {
+            const list = document.getElementById('itemsList');
+            if (!list || typeof Sortable === 'undefined') return;
+
+            sortableInstance = Sortable.create(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                draggable: '.item-card',
+                ghostClass: 'dragging',
+                onStart: () => {
+                    if (activeEditIndex !== null) {
+                        exitEditMode(activeEditIndex);
+                    }
+                },
+                onEnd: (evt) => {
+                    if (evt.oldIndex === evt.newIndex) return;
+                    const movedItem = chartData.items.splice(evt.oldIndex, 1)[0];
+                    if (!movedItem) return;
+                    chartData.items.splice(evt.newIndex, 0, movedItem);
+                    saveData();
+                    updateChart();
+                    renderItemsList();
+                }
+            });
         }
 
         // Initialize
