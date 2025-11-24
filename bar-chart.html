@@ -189,27 +189,6 @@
             opacity: 0.4;
         }
 
-        .drag-handle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 32px;
-            min-height: 32px;
-            padding: 6px;
-            border: 1px solid #444;
-            border-radius: 6px;
-            background: #1f1f1f;
-            color: #bbb;
-            font-size: 18px;
-            cursor: grab;
-            flex-shrink: 0;
-            touch-action: none;
-        }
-
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-
         .color-indicator {
             width: 18px;
             height: 18px;
@@ -288,29 +267,28 @@
         }
 
         .remove-btn {
-            width: 32px;
-            height: 32px;
-            padding: 6px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 3px;
+            width: 44px;
+            height: 44px;
+            background: rgba(231, 76, 60, 0.2);
+            color: #ffcdc3;
+            border: 1px solid rgba(231, 76, 60, 0.4);
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 20px;
             line-height: 1;
             flex-shrink: 0;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
+            touch-action: manipulation;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
         }
 
-        .item-card:hover .remove-btn,
-        .item-card.editing .remove-btn {
-            display: flex;
-        }
-
-        .remove-btn:hover {
-            background: #c0392b;
+        .remove-btn:hover,
+        .remove-btn:focus-visible {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: #fff;
         }
 
         .empty-state {
@@ -397,6 +375,7 @@
         let sortableInstance = null;
         let activeEditIndex = null;
         let outsideEditHandler = null;
+        let isReordering = false;
 
         // Initialize the chart
         function initChart() {
@@ -687,8 +666,7 @@
             }
 
             itemsList.innerHTML = chartData.items.map((item, index) => `
-                <div class="item-card" data-index="${index}" onclick="enterEditMode(${index})">
-                    <button class="drag-handle" type="button" onclick="event.stopPropagation()" title="Reorder item" aria-label="Reorder item">⋮⋮</button>
+                <div class="item-card" data-index="${index}" onclick="handleCardClick(${index})">
                     <div class="color-indicator" style="background-color: ${item.color}"></div>
                     <div class="item-info">
                         <span class="item-name">${item.name}</span>
@@ -711,7 +689,7 @@
                             onclick="event.stopPropagation()"
                         />
                     </div>
-                    <button class="remove-btn" onclick="event.stopPropagation(); removeItem(${index})" title="Remove">×</button>
+                    <button class="remove-btn" onclick="event.stopPropagation(); removeItem(${index})" title="Remove item" aria-label="Remove item">×</button>
                 </div>
             `).join('');
 
@@ -732,6 +710,14 @@
                 event.preventDefault();
                 exitEditMode(index);
             }
+        }
+
+        function handleCardClick(index) {
+            if (isReordering) {
+                return;
+            }
+            console.assert(typeof index === 'number', 'handleCardClick expected numeric index');
+            enterEditMode(index);
         }
 
         function enterEditMode(index) {
@@ -822,17 +808,23 @@
 
             sortableInstance = Sortable.create(list, {
                 animation: 150,
-                handle: '.drag-handle',
+                delay: 250,
+                delayOnTouchOnly: true,
+                touchStartThreshold: 4,
                 draggable: '.item-card',
                 ghostClass: 'dragging',
                 onStart: () => {
+                    isReordering = true;
                     if (activeEditIndex !== null) {
                         exitEditMode(activeEditIndex);
                     }
                 },
                 onEnd: (evt) => {
-                    if (evt.oldIndex === evt.newIndex) return;
+                    isReordering = false;
+                    if (evt.oldIndex === evt.newIndex || evt.oldIndex == null || evt.newIndex == null) return;
+                    console.assert(evt.oldIndex >= 0 && evt.newIndex >= 0, 'Sortable indices missing', evt);
                     const movedItem = chartData.items.splice(evt.oldIndex, 1)[0];
+                    console.assert(movedItem, 'Sortable item missing at oldIndex', evt);
                     if (!movedItem) return;
                     chartData.items.splice(evt.newIndex, 0, movedItem);
                     saveData();
