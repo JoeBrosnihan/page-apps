@@ -82,7 +82,6 @@
 
         .import-export-section {
             margin-top: 10px;
-            text-align: center;
         }
 
         .toggle-import-export {
@@ -93,20 +92,42 @@
             cursor: pointer;
             padding: 6px;
             transition: color 0.2s;
+            width: 100%;
         }
 
         .toggle-import-export:hover {
             color: #7f8c8d;
         }
 
-        .import-export-buttons {
+        .import-export-panel {
             display: none;
-            gap: 8px;
             margin-top: 8px;
         }
 
-        .import-export-buttons.show {
+        .import-export-panel.show {
+            display: block;
+        }
+
+        .import-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+
+        .import-textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .import-export-buttons {
             display: flex;
+            gap: 8px;
         }
 
         .import-export-btn {
@@ -123,6 +144,35 @@
 
         .import-export-btn:hover {
             background: #d5dbdb;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 16px;
+            background: #2c3e50;
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            max-width: 90%;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.error {
+            background: #e74c3c;
+        }
+
+        .notification.success {
+            background: #27ae60;
         }
 
         .items-list {
@@ -261,13 +311,21 @@
 
             <div class="import-export-section">
                 <button class="toggle-import-export" onclick="toggleImportExport()">Import/Export</button>
-                <div class="import-export-buttons" id="importExportButtons">
-                    <button class="import-export-btn" onclick="exportData()">Copy Data</button>
-                    <button class="import-export-btn" onclick="importData()">Paste Data</button>
+                <div class="import-export-panel" id="importExportPanel">
+                    <textarea 
+                        class="import-textarea" 
+                        id="importTextarea" 
+                        placeholder="Paste data here (name,value per line)&#10;&#10;Example:&#10;Coding,7&#10;Design,5"></textarea>
+                    <div class="import-export-buttons">
+                        <button class="import-export-btn" onclick="exportData()">Export</button>
+                        <button class="import-export-btn" onclick="importData()">Import</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div id="notification" class="notification"></div>
 
     <script>
         // Interactive bar chart with localStorage persistence
@@ -436,13 +494,24 @@
             }
         }
 
-        // Toggle import/export section
-        function toggleImportExport() {
-            const buttons = document.getElementById('importExportButtons');
-            buttons.classList.toggle('show');
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification show ' + type;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
         }
 
-        // Export data to clipboard as CSV
+        // Toggle import/export section
+        function toggleImportExport() {
+            const panel = document.getElementById('importExportPanel');
+            panel.classList.toggle('show');
+        }
+
+        // Export data to text area and clipboard
         async function exportData() {
             try {
                 // Generate CSV: name,value
@@ -451,20 +520,27 @@
                 );
                 const csvData = csvLines.join('\n');
                 
+                // Put in textarea
+                document.getElementById('importTextarea').value = csvData;
+                
+                // Also copy to clipboard
                 await navigator.clipboard.writeText(csvData);
-                alert('Data copied to clipboard!');
+                showNotification('Data exported to text box and clipboard');
             } catch (err) {
                 console.error('Failed to copy data:', err);
-                alert('Failed to copy data to clipboard');
+                document.getElementById('importTextarea').value = csvData;
+                showNotification('Data exported to text box', 'success');
             }
         }
 
-        // Import data from CSV (mobile-friendly)
+        // Import data from text area
         function importData() {
-            const text = prompt('Paste chart data (name,value per line):');
+            const textarea = document.getElementById('importTextarea');
+            const text = textarea.value;
             
-            if (!text) {
-                return; // User cancelled
+            if (!text.trim()) {
+                showNotification('Please paste data in the text box first', 'error');
+                return;
             }
             
             try {
@@ -477,14 +553,14 @@
                     
                     const parts = line.split(',');
                     if (parts.length !== 2) {
-                        throw new Error('Invalid format - each line must have: name,value');
+                        throw new Error('Invalid format on line ' + (i + 1) + '. Use: name,value');
                     }
                     
                     const name = parts[0].trim();
                     const value = parseFloat(parts[1].trim());
                     
                     if (!name || isNaN(value)) {
-                        throw new Error('Invalid data in line ' + (i + 1));
+                        throw new Error('Invalid data on line ' + (i + 1));
                     }
                     
                     // Auto-assign color from palette
@@ -509,10 +585,13 @@
                 saveData();
                 updateChart();
                 renderItemsList();
-                alert('Data imported successfully!');
+                showNotification('Imported ' + imported.length + ' items');
+                
+                // Clear textarea
+                textarea.value = '';
             } catch (err) {
                 console.error('Failed to import data:', err);
-                alert('Failed to import. Format: name,value (one per line)');
+                showNotification(err.message, 'error');
             }
         }
 
