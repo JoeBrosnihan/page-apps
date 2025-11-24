@@ -391,7 +391,7 @@
             <span id="totalReps">0</span>
             <small>Total Reps</small>
             <div id="currentExerciseInfo">Select exercise and weight</div>
-            <div id="exerciseStats">No data for this exercise yet</div>
+            <div id="exerciseStats" style="display: none;"></div>
             <div id="countdown">Next set in: 2:00</div>
         </div>
         <div id="chartContainer">
@@ -739,8 +739,8 @@
             const stats = getCurrentExerciseStats();
             
             if (!stats) {
-                exerciseStatsDisplay.textContent = 'No data for this exercise yet';
-                exerciseStatsDisplay.style.color = '#7f8c8d';
+                // Hide stats when no data available
+                exerciseStatsDisplay.style.display = 'none';
                 return;
             }
             
@@ -754,6 +754,7 @@
             
             exerciseStatsDisplay.textContent = statsText;
             exerciseStatsDisplay.style.color = '#27ae60';
+            exerciseStatsDisplay.style.display = 'block';
         }
 
         function selectExercise(exercise) {
@@ -936,7 +937,6 @@
                 // Try using the modern Clipboard API first
                 if (navigator.clipboard && window.isSecureContext) {
                     await navigator.clipboard.writeText(logText);
-                    alert('Workout log copied to clipboard!');
                 } else {
                     // Fallback for older browsers or non-secure contexts
                     const textArea = document.createElement('textarea');
@@ -950,15 +950,13 @@
                     const successful = document.execCommand('copy');
                     document.body.removeChild(textArea);
                     
-                    if (successful) {
-                        alert('Workout log copied to clipboard!');
-                    } else {
+                    if (!successful) {
                         throw new Error('Copy command failed');
                     }
                 }
             } catch (err) {
                 console.error('Failed to copy workout log: ', err);
-                alert('Failed to copy to clipboard. Your browser may not support this feature. Please try using a modern browser with HTTPS.');
+                // Silently fail - no user notification
             }
         }
 

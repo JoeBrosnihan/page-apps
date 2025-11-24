@@ -1,0 +1,60 @@
+---
+description: "Enforces efficient, space-conscious, mobile-first UI design principles"
+globs: ["**/*.html", "**/*.css", "**/*.jsx", "**/*.tsx", "**/*.vue"]
+alwaysApply: true
+---
+
+# UI Design Principles - MOBILE FIRST
+
+## Critical Mobile UX Rules
+- **Icons over text for actions**: Use symbols (×, +, -, ↑, ↓, etc.) instead of words like "Remove", "Delete", "Add"
+- **No text buttons on mobile**: Actions should be icon-only with compact touch targets (28-32px square)
+- **Minimize visual noise**: Every pixel counts on mobile - remove all non-essential elements
+- **Single-line layouts**: Items in lists must fit on one line with proper flexbox constraints
+- **Touch-friendly**: All interactive elements must be at least 44×44px tap target (can be 28px visual with padding)
+- **Test mobile first**: Design and test for mobile viewport (375px width) before desktop
+
+## Space Efficiency
+- **Maximize functional space**: Prioritize content and interactive elements over decorative elements
+- **Minimize unnecessary chrome**: Avoid large titles, redundant headings, or decorative containers unless explicitly requested
+- **Default to compact layouts**: Use minimal padding/margins (8-12px on mobile, 10-20px on desktop)
+- **Remove redundant labels**: If the purpose is obvious from context, skip the heading entirely
+
+## Layout Guidelines
+- Main content (charts, data, forms) should occupy 90%+ of viewport space
+- Control panels should be compact and dense - every row matters on mobile
+- Default chart/canvas heights should be generous (500px+) to maximize data visibility
+- Use subtle backgrounds (#f5f5f5, #fafafa) instead of gradients
+- All list items must use `min-width: 0` and `flex-shrink` to prevent wrapping
+
+## Interactive Elements
+- **Buttons**: Icon-only by default. Add `title` attribute for accessibility
+- **Inputs**: Minimal borders, compact sizing (8px padding max)
+- **Lists**: Single line per item, flexible name fields, fixed-width value fields
+- **Color indicators**: 16-20px squares maximum, not 30px+
+- **Card padding**: 8-10px maximum, not 15-20px
+
+## When Building Tools/Playgrounds
+- Focus on the interactive element first (e.g., the chart should dominate the page)
+- Controls should be minimal and functional - one line per control if possible
+- Skip all decorative titles unless user explicitly asks for polish
+- Use simple, clean styling that doesn't compete with content
+- No emojis in headings unless specifically requested
+
+## Visual Hierarchy
+- Let functionality speak for itself
+- Use minimal shadows (0 2px 4px rgba(0,0,0,0.08)) or none
+- Smaller everything: 16-20px color indicators, 8-10px padding, 28px icon buttons
+- Avoid text where icons suffice
+
+## When to Add Polish
+- Only add decorative elements when the user explicitly requests "polished", "beautiful", or "modern" design
+- If building a prototype or tool - default to extreme functional minimalism
+- When in doubt, optimize for mobile information density and usability over aesthetics
+- Remember: The user will complain if there's too much visual noise on mobile
+
+## Flexbox Best Practices for Mobile
+- Use `flex: 1` and `min-width: 0` on text inputs to allow shrinking
+- Use `flex-shrink: 0` on buttons and fixed-width inputs
+- Use `white-space: nowrap` on buttons to prevent wrapping
+- Test that items stay on one line at 375px width
