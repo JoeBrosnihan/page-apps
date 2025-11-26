@@ -24,7 +24,7 @@ alwaysApply: true
 - Main content (charts, data, forms) should occupy 90%+ of viewport space
 - Control panels should be compact and dense - every row matters on mobile
 - Default chart/canvas heights should be generous (500px+) to maximize data visibility
-- Use subtle backgrounds (#f5f5f5, #fafafa) instead of gradients
+- Avoid gradients - use solid colors (dark mode by default, or subtle light backgrounds if explicitly light mode)
 - All list items must use `min-width: 0` and `flex-shrink` to prevent wrapping
 
 ## Interactive Elements
@@ -58,3 +58,22 @@ alwaysApply: true
 - Use `flex-shrink: 0` on buttons and fixed-width inputs
 - Use `white-space: nowrap` on buttons to prevent wrapping
 - Test that items stay on one line at 375px width
+
+## Dark Mode
+- **Default to dark mode** for modern applications unless explicitly requested otherwise
+- **Background colors**: 
+  - Primary background: #1a1a1a (dark gray)
+  - Secondary/card background: #2a2a2a (lighter dark gray)
+  - Borders/dividers: #444 (subtle)
+- **Text colors**:
+  - Primary text: #e0e0e0 (light gray, high contrast)
+  - Secondary text: #999 (dimmed for less important content)
+  - Disabled/placeholder: #666 (very dim)
+- **Input fields**: Dark background (#1a1a1a or #2a2a2a) with light text (#e0e0e0)
+- **Chart elements**:
+  - Grid lines: rgba(255,255,255,0.1) (10% white)
+  - Axis labels: #999
+  - Tooltips: rgba(0,0,0,0.9) for good contrast
+- **Buttons**: #2a2a2a background, #e0e0e0 text, #444 borders
+- **Hover states**: Lighten backgrounds slightly (#333 for hover on #2a2a2a)
+- **Maintain WCAG contrast ratios**: Ensure text has sufficient contrast against dark backgrounds

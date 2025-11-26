@@ -184,6 +184,10 @@
             padding: 12px 0;
             cursor: pointer;
         }
+        
+        .item-card .remove-btn {
+            order: -1;
+        }
 
         .item-card.dragging {
             opacity: 0.4;
@@ -298,6 +302,39 @@
             font-size: 14px;
         }
 
+        .chart-type-section {
+            margin-bottom: 10px;
+        }
+
+        .chart-type-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-type-btn {
+            flex: 1;
+            padding: 10px;
+            background: #2a2a2a;
+            color: #999;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .chart-type-btn:hover {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .chart-type-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
         @media (max-width: 768px) {
             .chart-wrapper {
                 height: 350px;
@@ -320,6 +357,14 @@
         <div class="chart-container">
             <div class="chart-wrapper">
                 <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-type-section">
+            <div class="chart-type-buttons">
+                <button class="chart-type-btn active" onclick="switchChartType('bar')" data-type="bar">Bar</button>
+                <button class="chart-type-btn" onclick="switchChartType('pie')" data-type="pie">Pie</button>
+                <button class="chart-type-btn" onclick="switchChartType('radar')" data-type="radar">Radar</button>
             </div>
         </div>
 
@@ -372,16 +417,19 @@
         };
 
         let barChart;
+        let currentChartType = 'bar';
         let sortableInstance = null;
         let activeEditIndex = null;
         let outsideEditHandler = null;
         let isReordering = false;
 
-        // Initialize the chart
-        function initChart() {
+        // Initialize the chart with a specific type
+        function initChart(type = 'bar') {
             const ctx = document.getElementById('barChart').getContext('2d');
-            barChart = new Chart(ctx, {
-                type: 'bar',
+            
+            // Base configuration for all chart types
+            const config = {
+                type: type,
                 data: {
                     labels: [],
                     datasets: [{
@@ -410,37 +458,90 @@
                             }
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255,255,255,0.1)'
-                            },
-                            ticks: {
-                                color: '#999',
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#999',
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        }
-                    },
                     animation: {
                         duration: 750,
                         easing: 'easeInOutQuart'
                     }
                 }
+            };
+            
+            // Add scales for chart types that use them
+            if (type === 'bar') {
+                config.options.scales = {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255,255,255,0.1)'
+                        },
+                        ticks: {
+                            color: '#999',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#999',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                };
+            } else if (type === 'radar') {
+                config.options.scales = {
+                    r: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255,255,255,0.1)'
+                        },
+                        angleLines: {
+                            color: 'rgba(255,255,255,0.1)'
+                        },
+                        pointLabels: {
+                            color: '#999',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        ticks: {
+                            color: '#999',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                };
+            }
+            
+            barChart = new Chart(ctx, config);
+        }
+        
+        // Switch between chart types
+        function switchChartType(type) {
+            console.assert(['bar', 'pie', 'radar'].includes(type), 'Invalid chart type', type);
+            
+            if (currentChartType === type) return;
+            
+            currentChartType = type;
+            
+            // Update active button state
+            document.querySelectorAll('.chart-type-btn').forEach(btn => {
+                if (btn.dataset.type === type) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
             });
+            
+            // Destroy and recreate chart with new type
+            if (barChart) {
+                barChart.destroy();
+            }
+            initChart(type);
+            updateChart();
         }
 
         // Save chart data to localStorage
@@ -646,7 +747,17 @@
             barChart.data.labels = chartData.items.map(item => item.name);
             barChart.data.datasets[0].data = chartData.items.map(item => item.value);
             barChart.data.datasets[0].backgroundColor = chartData.items.map(item => item.color);
-            barChart.data.datasets[0].borderColor = chartData.items.map(item => item.color);
+            
+            // For radar charts, use transparency and points
+            if (currentChartType === 'radar') {
+                barChart.data.datasets[0].backgroundColor = chartData.items.map(item => item.color + '40');
+                barChart.data.datasets[0].borderColor = chartData.items[0]?.color || '#3498db';
+                barChart.data.datasets[0].pointBackgroundColor = chartData.items.map(item => item.color);
+                barChart.data.datasets[0].pointBorderColor = '#fff';
+            } else {
+                barChart.data.datasets[0].borderColor = chartData.items.map(item => item.color);
+            }
+            
             barChart.update();
         }
 
