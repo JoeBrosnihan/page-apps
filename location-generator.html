@@ -767,12 +767,20 @@
         }
 
         /**
-         * Open Apple Maps driving directions for destination coordinates.
+         * Product requirement: include explicit start (origin) and destination in Apple Maps directions.
          */
         function startAppleMapsNavigation(lat, lng) {
             assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
 
             const appleMapsURL = new URL('https://maps.apple.com/');
+            const origin = getOrigin();
+
+            if (origin !== null) {
+                const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
+                assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
+                appleMapsURL.searchParams.set('saddr', `${origin.lat},${origin.lng}`);
+            }
+
             appleMapsURL.searchParams.set('daddr', `${lat},${lng}`);
             appleMapsURL.searchParams.set('dirflg', 'd');
             window.location.href = appleMapsURL.toString();
