@@ -265,6 +265,45 @@
             text-align: center;
         }
 
+        .setting-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .setting-toggle-label {
+            flex: 1;
+            min-width: 0;
+            color: #495057;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .auto-navigate-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #007bff;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .map-provider-select {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: white;
+            color: #495057;
+            font-size: 0.9rem;
+            min-width: 126px;
+            flex-shrink: 0;
+            outline: none;
+        }
+
+        .map-provider-select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+
         .current-location {
             background: #f8f9fa;
             border-radius: 15px;
@@ -521,6 +560,22 @@
                         </div>
                         <div class="setting-hint">Random locations will be generated within this range</div>
                     </div>
+
+                    <div class="setting-group">
+                        <div class="setting-label">🚗 Navigation</div>
+                        <div class="setting-toggle-row">
+                            <label for="autoNavigateOnLoad" class="setting-toggle-label">Auto-start navigation when this page opens</label>
+                            <input type="checkbox" id="autoNavigateOnLoad" class="auto-navigate-checkbox" onchange="saveAutoNavigatePreference()">
+                        </div>
+                        <div class="setting-toggle-row" style="margin-top: 10px;">
+                            <label for="mapProvider" class="setting-toggle-label">Map app</label>
+                            <select id="mapProvider" class="map-provider-select" onchange="saveMapProviderPreference()">
+                                <option value="apple">Apple Maps</option>
+                                <option value="google">Google Maps</option>
+                            </select>
+                        </div>
+                        <div class="setting-hint">Saved in the URL so this link can reopen and immediately start driving directions</div>
+                    </div>
                 </div>
             </div>
 
@@ -564,11 +619,26 @@
         const DEFAULT_MIN_DISTANCE = 1;
         const DEFAULT_MAX_DISTANCE = 3;
         const MILES_TO_DEGREES_LAT = 0.014484; // Approximate conversion
+        const AUTO_NAVIGATE_PARAM = 'autoNavigate';
+        const MAP_PROVIDER_PARAM = 'mapProvider';
+        const MAP_PROVIDER_APPLE = 'apple';
+        const MAP_PROVIDER_GOOGLE = 'google';
+
+        /**
+         * Assert assumptions so failures surface with actionable messages.
+         */
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message);
+            }
+        }
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadOriginFromURL(); // Load origin from URL first, then fallback to localStorage
             loadDistanceRange();
+            loadAutoNavigatePreference();
+            loadMapProviderPreference();
             loadHistory();
             
             // Check if we need to show onboarding
@@ -576,7 +646,8 @@
                 showOnboarding();
             } else {
                 showMainApp();
-                generateNewLocation();
+                const generatedLocation = generateNewLocation();
+                maybeAutoStartNavigation(generatedLocation);
             }
         });
 
@@ -657,7 +728,8 @@
             if (getOrigin()) {
                 showMainApp();
                 loadOrigin(); // Update the main settings display
-                generateNewLocation(); // Generate first location
+                const generatedLocation = generateNewLocation(); // Generate first location
+                maybeAutoStartNavigation(generatedLocation);
                 showToast('Welcome! Your first random location has been generated.');
             }
         }
@@ -672,7 +744,7 @@
             if (!origin) {
                 document.getElementById('coordinates').textContent = 'Set origin coordinates first';
                 document.getElementById('distanceInfo').textContent = '';
-                return;
+                return null;
             }
             
             // Generate random distance between min and max (in miles)
@@ -702,6 +774,80 @@
             
             // Refresh history display
             loadHistory();
+
+            return {
+                lat: newLat,
+                lng: newLng,
+                formattedCoords,
+                distance
+            };
+        }
+
+        /**
+         * Product requirement: optionally jump directly into turn-by-turn setup on launch.
+         */
+        function maybeAutoStartNavigation(generatedLocation) {
+            if (!generatedLocation || !isAutoNavigateEnabled()) {
+                return;
+            }
+
+            startNavigation(generatedLocation.lat, generatedLocation.lng);
+        }
+
+        /**
+         * Product requirement: route auto-start directions via the selected map app.
+         */
+        function startNavigation(lat, lng) {
+            const selectedProvider = getSelectedMapProvider();
+
+            if (selectedProvider === MAP_PROVIDER_GOOGLE) {
+                startGoogleMapsNavigation(lat, lng);
+                return;
+            }
+
+            assert(selectedProvider === MAP_PROVIDER_APPLE, `Unsupported map provider: ${selectedProvider}`);
+            startAppleMapsNavigation(lat, lng);
+        }
+
+        /**
+         * Product requirement: include explicit start (origin) and destination in Apple Maps directions.
+         */
+        function startAppleMapsNavigation(lat, lng) {
+            assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
+
+            const appleMapsURL = new URL('https://maps.apple.com/');
+            const origin = getOrigin();
+
+            if (origin !== null) {
+                const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
+                assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
+                appleMapsURL.searchParams.set('saddr', `${origin.lat},${origin.lng}`);
+            }
+
+            appleMapsURL.searchParams.set('daddr', `${lat},${lng}`);
+            appleMapsURL.searchParams.set('dirflg', 'd');
+            window.location.href = appleMapsURL.toString();
+        }
+
+        /**
+         * Product requirement: Android-friendly option using Google Maps direction URLs.
+         */
+        function startGoogleMapsNavigation(lat, lng) {
+            assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
+
+            const googleMapsURL = new URL('https://www.google.com/maps/dir/');
+            googleMapsURL.searchParams.set('api', '1');
+
+            const origin = getOrigin();
+            if (origin !== null) {
+                const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
+                assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
+                googleMapsURL.searchParams.set('origin', `${origin.lat},${origin.lng}`);
+            }
+
+            googleMapsURL.searchParams.set('destination', `${lat},${lng}`);
+            googleMapsURL.searchParams.set('travelmode', 'driving');
+            window.location.href = googleMapsURL.toString();
         }
 
         /**
@@ -862,6 +1008,108 @@
                 url.searchParams.delete('lng');
                 window.history.replaceState({}, '', url.toString());
             }
+        }
+
+        /**
+         * Read auto-navigation preference from shareable URL state.
+         */
+        function isAutoNavigateEnabled() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const rawValue = urlParams.get(AUTO_NAVIGATE_PARAM);
+
+            if (rawValue === null) {
+                return false;
+            }
+
+            const normalizedValue = rawValue.trim().toLowerCase();
+            return normalizedValue === '1'
+                || normalizedValue === 'true'
+                || normalizedValue === 'yes'
+                || normalizedValue === 'on';
+        }
+
+        /**
+         * Normalize map provider URL value with apple as default.
+         */
+        function normalizeMapProvider(rawProvider) {
+            if (typeof rawProvider !== 'string') {
+                return MAP_PROVIDER_APPLE;
+            }
+
+            const normalizedProvider = rawProvider.trim().toLowerCase();
+            if (normalizedProvider === MAP_PROVIDER_GOOGLE) {
+                return MAP_PROVIDER_GOOGLE;
+            }
+
+            return MAP_PROVIDER_APPLE;
+        }
+
+        /**
+         * Read selected map provider from shareable URL state.
+         */
+        function getSelectedMapProvider() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return normalizeMapProvider(urlParams.get(MAP_PROVIDER_PARAM));
+        }
+
+        /**
+         * Keep the settings checkbox in sync with URL preference state.
+         */
+        function loadAutoNavigatePreference() {
+            const autoNavigateCheckbox = document.getElementById('autoNavigateOnLoad');
+            assert(autoNavigateCheckbox, 'Auto-navigation checkbox is missing');
+            autoNavigateCheckbox.checked = isAutoNavigateEnabled();
+        }
+
+        /**
+         * Keep map provider settings control in sync with URL preference state.
+         */
+        function loadMapProviderPreference() {
+            const mapProviderSelect = document.getElementById('mapProvider');
+            assert(mapProviderSelect, 'Map provider select control is missing');
+            mapProviderSelect.value = getSelectedMapProvider();
+        }
+
+        /**
+         * Persist auto-navigation preference in URL parameters.
+         */
+        function updateURLWithAutoNavigate(enabled) {
+            const url = new URL(window.location);
+            url.searchParams.set(AUTO_NAVIGATE_PARAM, enabled ? '1' : '0');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Persist map provider preference in URL parameters.
+         */
+        function updateURLWithMapProvider(provider) {
+            const normalizedProvider = normalizeMapProvider(provider);
+            const url = new URL(window.location);
+            url.searchParams.set(MAP_PROVIDER_PARAM, normalizedProvider);
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Save preference changes from settings menu into URL.
+         */
+        function saveAutoNavigatePreference() {
+            const autoNavigateCheckbox = document.getElementById('autoNavigateOnLoad');
+            assert(autoNavigateCheckbox, 'Auto-navigation checkbox is missing');
+
+            updateURLWithAutoNavigate(autoNavigateCheckbox.checked);
+            showToast(autoNavigateCheckbox.checked ? 'Auto-start navigation enabled' : 'Auto-start navigation disabled');
+        }
+
+        /**
+         * Save selected map provider in URL so shared links preserve platform preference.
+         */
+        function saveMapProviderPreference() {
+            const mapProviderSelect = document.getElementById('mapProvider');
+            assert(mapProviderSelect, 'Map provider select control is missing');
+
+            updateURLWithMapProvider(mapProviderSelect.value);
+            const selectedProvider = getSelectedMapProvider();
+            showToast(selectedProvider === MAP_PROVIDER_GOOGLE ? 'Map app set to Google Maps' : 'Map app set to Apple Maps');
         }
 
         /**
