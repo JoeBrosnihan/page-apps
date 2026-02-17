@@ -849,42 +849,28 @@
         }
 
         /**
-         * Product requirement: include explicit start (origin) and destination in Apple Maps directions.
-         * Uses maps:// URL scheme to launch the native Apple Maps app instead of the web page.
+         * Only pass the destination so the maps app uses current GPS as start,
+         * which enables the "Start driving" button instead of a step list.
+         * Uses maps:// URL scheme to launch the native Apple Maps app.
          */
         function startAppleMapsNavigation(lat, lng) {
             assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
 
             const params = new URLSearchParams();
-            const origin = getOrigin();
-
-            if (origin !== null) {
-                const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
-                assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
-                params.set('saddr', `${origin.lat},${origin.lng}`);
-            }
-
             params.set('daddr', `${lat},${lng}`);
             params.set('dirflg', 'd');
             window.location.href = `maps://?${params.toString()}`;
         }
 
         /**
-         * Product requirement: Android-friendly option using Google Maps direction URLs.
+         * Only pass the destination so Google Maps uses current GPS as start,
+         * which enables the "Start driving" button instead of a step list.
          */
         function startGoogleMapsNavigation(lat, lng) {
             assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
 
             const googleMapsURL = new URL('https://www.google.com/maps/dir/');
             googleMapsURL.searchParams.set('api', '1');
-
-            const origin = getOrigin();
-            if (origin !== null) {
-                const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
-                assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
-                googleMapsURL.searchParams.set('origin', `${origin.lat},${origin.lng}`);
-            }
-
             googleMapsURL.searchParams.set('destination', `${lat},${lng}`);
             googleMapsURL.searchParams.set('travelmode', 'driving');
             window.location.href = googleMapsURL.toString();
