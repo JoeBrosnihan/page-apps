@@ -355,6 +355,29 @@
             margin-top: 10px;
         }
 
+        .open-maps-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+        }
+
+        .open-maps-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(67, 206, 162, 0.4);
+        }
+
+        .open-maps-btn:active {
+            transform: translateY(0);
+        }
+
         .generate-btn {
             width: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -589,6 +612,10 @@
                 <div id="distanceInfo" class="distance-info"></div>
             </div>
 
+            <button id="openMapsBtn" class="open-maps-btn" onclick="openInMaps()" style="display: none;">
+                🗺️ Open in Maps
+            </button>
+
             <button class="generate-btn" onclick="generateNewLocation()">
                 🔄 Generate New Location
             </button>
@@ -624,6 +651,9 @@
         const MAP_PROVIDER_PARAM = 'mapProvider';
         const MAP_PROVIDER_APPLE = 'apple';
         const MAP_PROVIDER_GOOGLE = 'google';
+
+        // Track last generated location for the "Open in Maps" button
+        let lastGeneratedLocation = null;
 
         /**
          * Assert assumptions so failures surface with actionable messages.
@@ -776,12 +806,20 @@
             // Refresh history display
             loadHistory();
 
-            return {
+            lastGeneratedLocation = {
                 lat: newLat,
                 lng: newLng,
                 formattedCoords,
                 distance
             };
+
+            // Show the "Open in Maps" button now that we have a location
+            const openMapsBtn = document.getElementById('openMapsBtn');
+            if (openMapsBtn) {
+                openMapsBtn.style.display = 'block';
+            }
+
+            return lastGeneratedLocation;
         }
 
         /**
@@ -812,22 +850,23 @@
 
         /**
          * Product requirement: include explicit start (origin) and destination in Apple Maps directions.
+         * Uses maps:// URL scheme to launch the native Apple Maps app instead of the web page.
          */
         function startAppleMapsNavigation(lat, lng) {
             assert(Number.isFinite(lat) && Number.isFinite(lng), 'Navigation destination must be finite coordinates');
 
-            const appleMapsURL = new URL('https://maps.apple.com/');
+            const params = new URLSearchParams();
             const origin = getOrigin();
 
             if (origin !== null) {
                 const hasFiniteOrigin = Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
                 assert(hasFiniteOrigin, 'Navigation start coordinates must be finite');
-                appleMapsURL.searchParams.set('saddr', `${origin.lat},${origin.lng}`);
+                params.set('saddr', `${origin.lat},${origin.lng}`);
             }
 
-            appleMapsURL.searchParams.set('daddr', `${lat},${lng}`);
-            appleMapsURL.searchParams.set('dirflg', 'd');
-            window.location.href = appleMapsURL.toString();
+            params.set('daddr', `${lat},${lng}`);
+            params.set('dirflg', 'd');
+            window.location.href = `maps://?${params.toString()}`;
         }
 
         /**
@@ -849,6 +888,14 @@
             googleMapsURL.searchParams.set('destination', `${lat},${lng}`);
             googleMapsURL.searchParams.set('travelmode', 'driving');
             window.location.href = googleMapsURL.toString();
+        }
+
+        /**
+         * One-click button to open the last generated location in the selected map app.
+         */
+        function openInMaps() {
+            assert(lastGeneratedLocation, 'No location generated yet');
+            startNavigation(lastGeneratedLocation.lat, lastGeneratedLocation.lng);
         }
 
         /**
